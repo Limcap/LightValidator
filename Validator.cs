@@ -189,11 +189,14 @@ namespace Limcap.LightValidator {
 	public static class ValidationExtensions {
 		public static class Tests {
 			public static readonly ValidationTest<object> IsNotNull = x => x != null;
-			public static readonly ValidationTest<string> IsFilled= x => string.IsNullOrWhiteSpace(x);
+			public static readonly ValidationTest<string> IsFilled= x => !string.IsNullOrWhiteSpace(x);
 			public static ValidationTest<string> MaxLength( int length ) => x => x.Length <= length;
 		}
 		public static ValidationField<object> NotNull( this ValidationField<object> field, string msg = null ) {
 			field.Test(msg??$"Não pode ser nulo", x => x != null); return field;
+		}
+		public static ValidationField<string> NotEmpty( this ValidationField<string> field, string msg = null ) {
+			field.Test(msg??$"Não está preenchido", x => !string.IsNullOrWhiteSpace(x)); return field;
 		}
 		public static ValidationField<string> MaxLength( this ValidationField<string> field, int length, string msg = null ) {
 			field.Test(msg??$"Não pode ser maior que {length} caracteres", x => x.Length <= length); return field;
