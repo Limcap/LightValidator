@@ -219,11 +219,13 @@ namespace Limcap.LightValidator {
 		public static bool NotNull( object x ) => x != null;
 		public static bool NotEmpty<V>( IEnumerable<V> x ) => x.Count() > 0;
 		public static bool NotBlank( string x ) => !string.IsNullOrWhiteSpace(x);
-		public static bool IsMatch( string x, string t ) => Regex.IsMatch(x, t);
-		public static bool In( string x, IEnumerable<string> t, StringMode m ) => m.Apply(t).Contains(x);
-		public static bool In<V>( V x, IEnumerable<V> t ) => t.Contains(x);
-		public static bool Equals<V>( V x, V t ) where V : IEquatable<V> => x.Equals(t);
-		public static bool Equals( string x, string t, StringMode m ) => m.Apply(x).Equals(m.Apply(t));
+		public static bool IsMatch( string x, string a ) => Regex.IsMatch(x, a);
+		public static bool In<V>( V x, IEnumerable<V> a ) => a.Contains(x);
+		public static bool In<V>( V x, IEnumerable<V> a, Adjustment<V> f ) => f.Apply(a).Contains(f(x));
+		public static bool In( string x, IEnumerable<string> a, StringOp f ) => f.Apply(a).Contains(f.Apply(x));
+		public static bool Equals<V>( V x, V a ) where V : IEquatable<V> => x.Equals(a);
+		public static bool Equals<V>( V x, V a, Adjustment<V> f) where V : IEquatable<V> => f(x).Equals(f(a));
+		public static bool Equals( string x, string t, StringOp f ) => f.Apply(x).Equals(f.Apply(t));
 		//public static bool MaxLength(string x, int t) => x.Length <= t;
 		public static bool MaxLength<V>( IEnumerable<V> x, int t ) => x.Count() <= t;
 		//public static bool MinLength(string x, int t) => x.Length >= t;
@@ -253,26 +255,32 @@ namespace Limcap.LightValidator {
 		public static Tester<V> In<V>( this Tester<V> field, IEnumerable<V> target, string msg = null ) {
 			field.Test(msg??$"Não é um valor válido", Tests.In, target); return field;
 		}
-		public static Tester<string> In( this Tester<string> field, IEnumerable<string> target, StringMode mode, string msg = null ) {
-			field.Test(msg??$"Não é um valor válido", Tests.In, target, mode); return field;
+		public static Tester<V> In<V>( this Tester<V> field, IEnumerable<V> allowed, Adjustment<V> adjustment, string msg = null ) {
+			field.Test(msg??$"Não é um valor válido", Tests.In, allowed, adjustment); return field;
 		}
-		public static Tester<V> Equals<V>( this Tester<V> field, V target, string msg = null ) where V : IEquatable<V> {
-			field.Test(msg??$"Deve ser {target}", Tests.Equals, target); return field;
+		public static Tester<string> In( this Tester<string> field, IEnumerable<string> allowed, StringOp op, string msg = null ) {
+			field.Test(msg??$"Não é um valor válido", Tests.In, allowed, op); return field;
 		}
-		public static Tester<string> Equals( this Tester<string> field, string target, StringMode mode, string msg = null ) {
-			field.Test(msg??$"Deve ser {target}", Tests.Equals, target, mode); return field;
+		public static Tester<V> Equals<V>( this Tester<V> field, V allowed, string msg = null ) where V : IEquatable<V> {
+			field.Test(msg??$"Deve ser {allowed}", Tests.Equals, allowed); return field;
 		}
-		public static Tester<IEnumerable<V>> MaxLength<V>( this Tester<IEnumerable<V>> field, int target, string msg = null ) {
-			field.Test(msg??$"Não pode ser maior que {target} caracteres", Tests.MaxLength, target); return field;
+		public static Tester<V> Equals<V>( this Tester<V> field, V allowed, Adjustment<V> adjustment, string msg = null ) where V : IEquatable<V> {
+			field.Test(msg??$"Valor inválido", Tests.Equals, allowed, adjustment); return field;
 		}
-		public static Tester<IEnumerable<V>> MinLength<V>( this Tester<IEnumerable<V>> field, int target, string msg = null ) {
-			field.Test(msg??$"Não pode ser menor que {target} caracteres", Tests.MinLength, target); return field;
+		public static Tester<string> Equals( this Tester<string> field, string allowed, StringOp op, string msg = null ) {
+			field.Test(msg??$"Deve ser {allowed}", Tests.Equals, allowed, op); return field;
 		}
-		public static Tester<V> Max<V>( this Tester<V> field, V target, string msg = null ) where V : IComparable<V> {
-			field.Test(msg??$"Não pode ser maior que {target}", Tests.Max, target); return field;
+		public static Tester<IEnumerable<V>> MaxLength<V>( this Tester<IEnumerable<V>> field, int allowed, string msg = null ) {
+			field.Test(msg??$"Não pode ser maior que {allowed} caracteres", Tests.MaxLength, allowed); return field;
 		}
-		public static Tester<V> Min<V>( this Tester<V> field, V target, string msg = null ) where V : IComparable<V> {
-			field.Test(msg??$"Não pode ser menor que {target}", Tests.Min, target); return field;
+		public static Tester<IEnumerable<V>> MinLength<V>( this Tester<IEnumerable<V>> field, int allowed, string msg = null ) {
+			field.Test(msg??$"Não pode ser menor que {allowed} caracteres", Tests.MinLength, allowed); return field;
+		}
+		public static Tester<V> Max<V>( this Tester<V> field, V allowed, string msg = null ) where V : IComparable<V> {
+			field.Test(msg??$"Não pode ser maior que {allowed}", Tests.Max, allowed); return field;
+		}
+		public static Tester<V> Min<V>( this Tester<V> field, V allowed, string msg = null ) where V : IComparable<V> {
+			field.Test(msg??$"Não pode ser menor que {allowed}", Tests.Min, allowed); return field;
 		}
 	}
 
@@ -281,7 +289,8 @@ namespace Limcap.LightValidator {
 
 
 
-	public enum StringMode { IgnoreWhitespace=1, IgnoreCase=2, IgnoreDiacritics=4, /*OnlyASCII = 8, OnlyWord = 16, OnlySentence = 32*/ }
+	public delegate T Adjustment<T>( T value );
+	public enum StringOp { Trim=1, Upper=2, RemoveDiacritics=4, ToASCII = 8, /* OnlyWord = 16, OnlySentence = 32*/ }
 
 
 
@@ -289,32 +298,33 @@ namespace Limcap.LightValidator {
 
 
 	public static class StringExtensions {
-		public static bool HasFlag(this StringMode mode, StringMode checkflag) => (mode & checkflag)==checkflag;
-
-		public static string Apply(this StringMode m, string x) {
-			if (m.HasFlag(StringMode.IgnoreWhitespace)) { x = x.Trim(); }
-			if (m.HasFlag(StringMode.IgnoreCase)) { x = x.ToUpper(); }
-			if (m.HasFlag(StringMode.IgnoreDiacritics)) { x = x.RemoveDiacritics(); }
+		internal static string Apply(this StringOp op, string x) {
+			if (op.HasFlag(StringOp.Trim)) { x = x.Trim(); }
+			if (op.HasFlag(StringOp.Upper)) { x = x.ToUpper(); }
+			if (op.HasFlag(StringOp.RemoveDiacritics)) { x = x.RemoveDiacritics(); }
+			if (op.HasFlag(StringOp.ToASCII)) { x = x.ToASCII(); }
 			return x;
-			//if (m.HasFlag(Mode.OnlyASCII)) { x = x.ToASCII(); }
 			//if (m.HasFlag(Mode.OnlyWord)) { x = Regex.Replace(x,@"[^\w]-", ""); }
 			//if (m.HasFlag(Mode.OnlySentence)) { x = Regex.Replace(x, @"[^\w-.\s]", ""); }
 		}
 
-		public static IEnumerable<string> Apply(this StringMode m, IEnumerable<string> x) {
-			if (m.HasFlag(StringMode.IgnoreWhitespace)) { x = x.Trim(); }
-			if (m.HasFlag(StringMode.IgnoreCase)) { x = x.ToUpper(); }
-			if (m.HasFlag(StringMode.IgnoreDiacritics)) { x = x.RemoveDiacritics(); }
+		internal static IEnumerable<string> Apply(this StringOp op, IEnumerable<string> x) {
+			if (op.HasFlag(StringOp.Trim)) { x = x.Trim(); }
+			if (op.HasFlag(StringOp.Upper)) { x = x.ToUpper(); }
+			if (op.HasFlag(StringOp.RemoveDiacritics)) { x = x.RemoveDiacritics(); }
+			if (op.HasFlag(StringOp.ToASCII)) { x = x.ToASCII(); }
 			return x;
 		}
 
+		internal static IEnumerable<V> Apply<V>( this Adjustment<V> f, IEnumerable<V> collection ) => collection.Select(y => f(y));
 		//public static IEnumerable<string> Contains(this IEnumerable<string>, Mode mode)
-		public static IEnumerable<string> Trim(this IEnumerable<string> t) => t.Select(u => u.Trim());
-		public static IEnumerable<string> ToUpper(this IEnumerable<string> t) => t.Select(u => u.ToUpper());
-		public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
-
+		public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
+		public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
+		public static IEnumerable<string> ToASCII(this IEnumerable<string> texts) => texts.Select(u => u.ToASCII());
+		public static string ToASCII(this string text) => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", "*");
+		public static IEnumerable<string> RemoveDiacritics( this IEnumerable<string> text ) => text.Select(t => t.RemoveDiacritics());
 		public static string RemoveDiacritics( this string text ) {
-			var normalizedString = text.Normalize(System.Text.NormalizationForm.FormD);
+			var normalizedString = text.Normalize(NormalizationForm.FormD);
 			var sb = new StringBuilder(normalizedString.Length);
 			for (int i = 0; i<normalizedString.Length; i++) {
 				char c = normalizedString[i];
@@ -324,10 +334,6 @@ namespace Limcap.LightValidator {
 			return sb.ToString().Normalize(NormalizationForm.FormC);
 		}
 
-		public static IEnumerable<string> ASCII(this IEnumerable<string> t) => t.Select(u => u.ToASCII());
-
-		public static string ToASCII(this string text) => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", "*");
-
-		static string RegexReplace(this string text, string pattern, string replacement = "") => Regex.Replace(text, pattern, replacement);
+		//static string RegexReplace(this string text, string pattern, string replacement = "") => Regex.Replace(text, pattern, replacement);
 	}
 }
