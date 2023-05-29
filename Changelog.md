@@ -1,4 +1,10 @@
-﻿### Ver 0.3.0
+﻿### Ver 0.3.1
+- Classes were renamed for the better
+- Field method is now Param
+- Can now test a Param without supplying its value. However there is no pre-defined test for this mode, you'll have to dupply yout own test
+- Some changes in some access modifiers (public/internal)
+
+### Ver 0.3.0
 - Extensive refactoring
 - Better code readability
 - Estructural improvement in Tests and Test delegates
