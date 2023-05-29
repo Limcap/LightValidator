@@ -8,13 +8,18 @@ using System.Xml.Schema;
 namespace Limcap.LightValidator {
 
 	/// <summary>
-	/// Novo validator 2.0:
-	/// Validator e validation foram fundidos em um so objeto. O campo Field agora é só um DTO e o novo Tester ocupou seu lugar,
-	/// como um struct com somente a referencia para o Validator de forma a evitar a criação de vários objetos em memória reservada.
-	/// (Para que isso seja alcançado, o objeto Field deve ser dissolvido e seus membros absorvidos pelo Validator - na versao alpha 2).
-	/// Novo ValidationText<V,C> permite que faça-se testes com parâmetros possam ser predefinidos em vez de ser delegates gerados em runtime
+	///	Objeto para validação de qualquer outro objeto e seus membros.
 	/// </summary>
-	/// <version>0.2.0.3-a1</version>
+	/// <changelog>
+	/// Validator 0.2.0.3:
+	/// - Validator e validation foram fundidos em um so objeto.
+	/// - A classe Field foi absorvida pela Validator para aumentar a performace, pois assim não será necessário
+	///   criar um novo objeto no heap a cada chamada da função Field;
+	/// - Novo struct Tester ocupou lugar do antigo Field. Ele possui um único membro que é uma referência para
+	///   o próprio Validator de forma a permitir que o struct seja retornado no diversas vezes durante a validação
+	///   sem ocupar muito espaço do stack e aumentando a performance.
+	/// - Novo ValidationText[V,C] permite que faça-se testes com parâmetros possam ser predefinidos em vez de ser delegates gerados em runtime
+	/// </changelog>
 	public class Validator {
 		public Validator( dynamic obj ) {
 			Object = obj;
@@ -25,13 +30,11 @@ namespace Limcap.LightValidator {
 
 		public dynamic Object { get; private set; }
 		public List<ValidationResult> Results { get; private set; }
-		internal Field CurentField { get; private set; }
-
-		//public string CurrentFieldName { get; }
-		//public dynamic CurrentFieldValue { get; }
-		//public bool CurrentFieldIsValid { get; internal set; }
-		//public ValidationResult? CurrentFieldResult { get; internal set; }
-		//public string CurrentFieldLastResult => CurrentFieldResult?.ErrorMessages.LastOrDefault();
+		public string CurrentFieldName { get; internal set; }
+		public dynamic CurrentFieldValue { get; internal set; }
+		public bool CurrentFieldIsValid { get; internal set; }
+		public ValidationResult CurrentFieldResult { get; internal set; }
+		public string CurrentFieldLastResult => CurrentFieldResult.ErrorMessages.LastOrDefault();
 
 
 
@@ -40,7 +43,10 @@ namespace Limcap.LightValidator {
 		public void Reset( dynamic obj = null ) {
 			Object = obj;
 			Results = null;
-			CurentField = null;
+			CurrentFieldName = null;
+			CurrentFieldValue = null;
+			CurrentFieldIsValid = false;
+			CurrentFieldResult = new ValidationResult();
 		}
 
 
@@ -54,9 +60,11 @@ namespace Limcap.LightValidator {
 
 
 		public Tester<V> Field<V>( string name, V value ) {
-			CurentField =  new Field(name, value);
-			var tester =  new Tester<V>(this);
-			return tester;
+			CurrentFieldName = name;
+			CurrentFieldValue = value;
+			CurrentFieldIsValid = true;
+			CurrentFieldResult = new ValidationResult();
+			return new Tester<V>(this);
 		}
 
 
@@ -75,12 +83,14 @@ namespace Limcap.LightValidator {
 
 	public struct Tester<V> {
 		internal Tester(Validator v) { this.v=v; }
-		Validator v;
+
+		
+		private Validator v;
 
 
 		public Tester<V> Test( string msg, ValidationTest<V> test ) {
 			try {
-				var success = test(v.CurentField.Value);
+				var success = test(v.CurrentFieldValue);
 				if (!success) AddErrorMessage(msg);
 			}
 			catch (Exception ex) {
@@ -92,9 +102,9 @@ namespace Limcap.LightValidator {
 
 
 
-		public Tester<V> Test<C>( string msg, ValidationTest<V,C> test, C compsarisonValue ) {
+		public Tester<V> Test<C>( string msg, ValidationTest<V,C> test, C targetValue ) {
 			try {
-				var success = test(v.CurentField.Value, compsarisonValue);
+				var success = test(v.CurrentFieldValue, targetValue);
 				if (!success) AddErrorMessage(msg);
 			}
 			catch (Exception ex) {
@@ -116,7 +126,7 @@ namespace Limcap.LightValidator {
 
 		public Tester<V> Test( string msg, ValidationRule<V> rule ) {
 			try {
-				var success = rule.Test(v.CurentField.Value);
+				var success = rule.Test(v.CurrentFieldValue);
 				if (!success) AddErrorMessage(rule.FailureMessage);
 			}
 			catch (Exception ex) {
@@ -129,38 +139,15 @@ namespace Limcap.LightValidator {
 
 
 		public void AddErrorMessage( string msg ) {
-			if (v.CurentField.IsValid) {
-				v.CurentField.Result = new ValidationResult(v.CurentField.Name);
+			if (v.CurrentFieldIsValid) {
+				v.CurrentFieldResult = new ValidationResult(v.CurrentFieldName);
 				v.InitializeResults();
-				v.Results.Add(v.CurentField.Result.Value);
-				v.CurentField.IsValid = false;
+				v.Results.Add(v.CurrentFieldResult);
+				v.CurrentFieldIsValid = false;
 			}
-			v.CurentField.Result?.ErrorMessages.Add(msg);
+			v.CurrentFieldResult.ErrorMessages.Add(msg);
 		}
 	}
-
-
-
-
-
-
-	public class Field {
-		internal Field( string name, dynamic value ) {
-			Name = name;
-			Value = value;
-			IsValid = true;
-			Result = null;
-		}
-
-
-		public string Name { get; }
-		public dynamic Value { get; }
-		public bool IsValid { get; internal set; }
-		public ValidationResult? Result { get; internal set; }
-		public string LastResult => Result?.ErrorMessages.LastOrDefault();
-	}
-
-
 
 
 
@@ -200,7 +187,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class ValidationExtensions {
+	public static class TesterExtensions {
 		public static class Tests {
 			public static readonly ValidationTest<object> NotNull = x => x != null;
 			public static readonly ValidationTest<string> NotEmpty = x => !string.IsNullOrWhiteSpace(x);
