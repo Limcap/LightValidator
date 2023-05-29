@@ -6,54 +6,56 @@ using System.Runtime.CompilerServices;
 using System.Xml.Schema;
 
 namespace Limcap.LightValidator {
+
+	/// <summary>
+	/// Novo validator 2.0:
+	/// Validator e validation foram fundidos em um so objeto. O campo Field agora é só um DTO e o novo Tester ocupou seu lugar,
+	/// como um struct com somente a referencia para o Validator de forma a evitar a criação de vários objetos em memória reservada.
+	/// (Para que isso seja alcançado, o objeto Field deve ser dissolvido e seus membros absorvidos pelo Validator - na versao alpha 2).
+	/// Novo ValidationText<V,C> permite que faça-se testes com parâmetros possam ser predefinidos em vez de ser delegates gerados em runtime
+	/// </summary>
+	/// <version>0.2.0.3-a1</version>
 	public class Validator {
-		public ValidationNamer FieldNamer { get; set; }
-
-
-
-
-		public void Validate( dynamic obj, out Validation validation ) {
-			validation = new Validation(obj, FieldNamer);
+		public Validator( dynamic obj ) {
+			Object = obj;
 		}
 
 
 
 
-		public List<ValidationResult> Validate( dynamic obj, ValidationScript script ) {
-			var v = new Validation(obj, FieldNamer);
-			script(v);
-			return v.Results;
+		public dynamic Object { get; private set; }
+		public List<ValidationResult> Results { get; private set; }
+		internal Field CurentField { get; private set; }
+
+		//public string CurrentFieldName { get; }
+		//public dynamic CurrentFieldValue { get; }
+		//public bool CurrentFieldIsValid { get; internal set; }
+		//public ValidationResult? CurrentFieldResult { get; internal set; }
+		//public string CurrentFieldLastResult => CurrentFieldResult?.ErrorMessages.LastOrDefault();
+
+
+
+
+
+		public void Reset( dynamic obj = null ) {
+			Object = obj;
+			Results = null;
+			CurentField = null;
 		}
-	}
 
 
 
 
-
-
-
-
-	public class Validation {
-		public Validation( dynamic obj, ValidationNamer fieldNamer ) {
-			Subject = obj;
-			FieldNamer = fieldNamer;
-			//Results = new List<ValidationResults>()
+		internal void InitializeResults() {
+			Results = Results ?? new List<ValidationResult>();
 		}
 
 
 
 
-		public readonly dynamic Subject;
-		public readonly ValidationNamer FieldNamer;
-		public List<ValidationResult> Results;
-		public void InitializeResults() => Results = Results ?? new List<ValidationResult>();
-
-
-
-
-		public ValidationField<V> Field<V>( string name, V value ) {
-			var tester =  new ValidationField<V>(name, value, this);
-			//Results.Add(tester.Result);
+		public Tester<V> Field<V>( string name, V value ) {
+			CurentField =  new Field(name, value);
+			var tester =  new Tester<V>(this);
 			return tester;
 		}
 
@@ -71,50 +73,14 @@ namespace Limcap.LightValidator {
 
 
 
-
-	public class ValidationField<V> {
-		public ValidationField( string name, V value, Validation validation ) {
-			v = validation;
-			originalName = name;
-			//Subject = validation.Subject;
-			//FieldNamer = validation.FieldNamer;
-			//Results = validation.Results;
-			Value = value;
-			IsValid = true;
-		}
+	public struct Tester<V> {
+		internal Tester(Validator v) { this.v=v; }
+		Validator v;
 
 
-		private readonly string originalName;
-		private readonly Validation v;
-		public ValidationResult Result { get; private set; }
-		public V Value { get; }
-		public string LastResult {
-			get {
-				return Result.ErrorMessages.LastOrDefault();
-			}
-		}
-		public bool IsValid { get; private set; }
-
-
-
-
-		public void AddErrorMessage( string msg ) {
-			if (IsValid) {
-				var name = v.FieldNamer?.Invoke(originalName, v.Subject) ?? originalName;
-				Result = new ValidationResult(name);
-				v.InitializeResults();
-				v.Results.Add(Result);
-				IsValid = false;
-			}
-			Result.ErrorMessages.Add(msg);
-		}
-
-
-
-
-		public ValidationField<V> Test( string msg, ValidationTest<V> test ) {
+		public Tester<V> Test( string msg, ValidationTest<V> test ) {
 			try {
-				var success = test(Value);
+				var success = test(v.CurentField.Value);
 				if (!success) AddErrorMessage(msg);
 			}
 			catch (Exception ex) {
@@ -126,7 +92,21 @@ namespace Limcap.LightValidator {
 
 
 
-		public ValidationField<V> Test( string msg, bool success ) {
+		public Tester<V> Test<C>( string msg, ValidationTest<V,C> test, C compsarisonValue ) {
+			try {
+				var success = test(v.CurentField.Value, compsarisonValue);
+				if (!success) AddErrorMessage(msg);
+			}
+			catch (Exception ex) {
+				AddErrorMessage("[Exception] " + ex.Message);
+			}
+			return this;
+		}
+
+
+
+
+		public Tester<V> Test( string msg, bool success ) {
 			if (!success) AddErrorMessage(msg);
 			return this;
 		}
@@ -134,9 +114,9 @@ namespace Limcap.LightValidator {
 
 
 
-		public ValidationField<V> Test( string msg, ValidationRule<V> rule ) {
+		public Tester<V> Test( string msg, ValidationRule<V> rule ) {
 			try {
-				var success = rule.Test(Value);
+				var success = rule.Test(v.CurentField.Value);
 				if (!success) AddErrorMessage(rule.FailureMessage);
 			}
 			catch (Exception ex) {
@@ -144,6 +124,40 @@ namespace Limcap.LightValidator {
 			}
 			return this;
 		}
+
+
+
+
+		public void AddErrorMessage( string msg ) {
+			if (v.CurentField.IsValid) {
+				v.CurentField.Result = new ValidationResult(v.CurentField.Name);
+				v.InitializeResults();
+				v.Results.Add(v.CurentField.Result.Value);
+				v.CurentField.IsValid = false;
+			}
+			v.CurentField.Result?.ErrorMessages.Add(msg);
+		}
+	}
+
+
+
+
+
+
+	public class Field {
+		internal Field( string name, dynamic value ) {
+			Name = name;
+			Value = value;
+			IsValid = true;
+			Result = null;
+		}
+
+
+		public string Name { get; }
+		public dynamic Value { get; }
+		public bool IsValid { get; internal set; }
+		public ValidationResult? Result { get; internal set; }
+		public string LastResult => Result?.ErrorMessages.LastOrDefault();
 	}
 
 
@@ -188,30 +202,35 @@ namespace Limcap.LightValidator {
 
 	public static class ValidationExtensions {
 		public static class Tests {
-			public static readonly ValidationTest<object> IsNotNull = x => x != null;
-			public static readonly ValidationTest<string> IsFilled= x => !string.IsNullOrWhiteSpace(x);
-			public static ValidationTest<string> MaxLength( int length ) => x => x.Length <= length;
+			public static readonly ValidationTest<object> NotNull = x => x != null;
+			public static readonly ValidationTest<string> NotEmpty = x => !string.IsNullOrWhiteSpace(x);
+			public static readonly ValidationTest<string, int> MaxLength = (x,t) => x.Length <= t;
+			public static readonly ValidationTest<string, int> MinLength = (x,t) => x.Length >= t;
+			public static readonly ValidationTest<decimal, decimal> Max = (x,t) => x <= t;
+			public static readonly ValidationTest<decimal, decimal> Min = (x,t) => x >= t;
+			public static readonly ValidationTest<decimal, decimal> Exact = (x,t) => x == t;
 		}
-		public static ValidationField<object> NotNull( this ValidationField<object> field, string msg = null ) {
-			field.Test(msg??$"Não pode ser nulo", x => x != null); return field;
+
+		public static Tester<object> NotNull( this Tester<object> field, string msg = null ) {
+			field.Test(msg??$"Não pode ser nulo", Tests.NotNull); return field;
 		}
-		public static ValidationField<string> NotEmpty( this ValidationField<string> field, string msg = null ) {
-			field.Test(msg??$"Não está preenchido", x => !string.IsNullOrWhiteSpace(x)); return field;
+		public static Tester<string> NotEmpty( this Tester<string> field, string msg = null ) {
+			field.Test(msg??$"Não está preenchido", Tests.NotEmpty); return field;
 		}
-		public static ValidationField<string> MaxLength( this ValidationField<string> field, int length, string msg = null ) {
-			field.Test(msg??$"Não pode ser maior que {length} caracteres", x => x.Length <= length); return field;
+		public static Tester<string> MaxLength( this Tester<string> field, int target, string msg = null ) {
+			field.Test(msg??$"Não pode ser maior que {target} caracteres", Tests.MaxLength, target); return field;
 		}
-		public static ValidationField<string> MinLength( this ValidationField<string> field, int length, string msg = null ) {
-			field.Test(msg??$"Não pode ser menor que {length} caracteres", x => x.Length >= length); return field;
+		public static Tester<string> MinLength( this Tester<string> field, int target, string msg = null ) {
+			field.Test(msg??$"Não pode ser menor que {target} caracteres", Tests.MinLength, target); return field;
 		}
-		public static ValidationField<int> Max( this ValidationField<int> field, decimal value, string msg = null ) {
-			field.Test(msg??$"Não pode ser maior que {value}", x => x <= value); return field;
+		public static Tester<decimal> Max( this Tester<decimal> field, decimal target, string msg = null ) {
+			field.Test(msg??$"Não pode ser maior que {target}", Tests.Max, target); return field;
 		}
-		public static ValidationField<int> Min( this ValidationField<int> field, decimal value, string msg = null ) {
-			field.Test(msg??$"Não pode ser menor que {value}", x => x >= value); return field;
+		public static Tester<decimal> Min( this Tester<decimal> field, decimal target, string msg = null ) {
+			field.Test(msg??$"Não pode ser menor que {target}", Tests.Min, target); return field;
 		}
-		public static ValidationField<int> Exact( this ValidationField<int> field, decimal value, string msg = null ) {
-			field.Test(msg??$"Deve ser {value}", x => x == value); return field;
+		public static Tester<decimal> Exact( this Tester<decimal> field, decimal target, string msg = null ) {
+			field.Test(msg??$"Deve ser {target}", Tests.Exact, target); return field;
 		}
 	}
 
@@ -223,6 +242,7 @@ namespace Limcap.LightValidator {
 
 
 	public delegate bool ValidationTest<V>( V value );
-	public delegate string ValidationNamer( string originalName, dynamic validationSubject );
-	public delegate void ValidationScript( Validation v );
+	public delegate bool ValidationTest<V,C>( V value, C value2 );
+	//public delegate string ValidationNamer( string originalName, dynamic validationSubject );
+	public delegate void ValidationScript( Validator v );
 }
