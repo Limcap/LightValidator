@@ -15,7 +15,7 @@ namespace Limcap.LightValidator {
 	///	Provides validation for any object and its members.
 	/// </summary>
 	public class Validator {
-		public Validator(dynamic obj) {
+		public Validator(dynamic obj = null) {
 			Object = obj;
 		}
 
@@ -29,7 +29,8 @@ namespace Limcap.LightValidator {
 		public dynamic CurrentEqualizer { get; internal set; }
 		public bool CurrentFieldIsValid { get; internal set; }
 		public ValidationResult CurrentFieldResult { get; internal set; }
-		public string CurrentFieldLastResult => CurrentFieldResult.ErrorMessages.LastOrDefault();
+		public string LastError => Results.LastOrDefault().ErrorMessages?.LastOrDefault();
+		public bool LasTestHasPassed { get; internal set; }
 
 
 
@@ -47,23 +48,55 @@ namespace Limcap.LightValidator {
 
 
 
-		internal void InitializeResults() {
-			Results = Results ?? new List<ValidationResult>();
-		}
 
 
-
-
-		public Tester<V> Field<V>(string name, V value) {
+		public ParamTester<V> Param<V>(string name, V value) {
 			CurrentFieldName = name;
 			CurrentFieldValue = value;
 			CurrentFieldIsValid = true;
 			CurrentFieldResult = new ValidationResult();
 			CurrentEqualizer = null;
-			return new Tester<V>(this);
+			return new ParamTester<V>(this);
 		}
 
 
+
+
+
+
+		public ParamTester Param(string name) {
+			CurrentFieldName = name;
+			CurrentFieldValue = null;
+			CurrentFieldIsValid = true;
+			CurrentFieldResult = new ValidationResult();
+			CurrentEqualizer = null;
+			return new ParamTester(this);
+		}
+
+
+
+
+
+
+		internal void AddErrorMessage(
+		string msg) {
+			if (CurrentFieldIsValid) {
+				CurrentFieldResult = new ValidationResult(CurrentFieldName);
+				InitializeResults();
+				Results.Add(CurrentFieldResult);
+				CurrentFieldIsValid = false;
+			}
+			CurrentFieldResult.ErrorMessages.Add(msg);
+		}
+
+
+
+
+
+
+		internal void InitializeResults() {
+			Results = Results ?? new List<ValidationResult>();
+		}
 
 
 		internal void RemoveEmptyResults() {
@@ -77,21 +110,43 @@ namespace Limcap.LightValidator {
 
 
 
-	public struct Tester<V> {
+	public struct ParamTester {
 
-		internal Tester
+		internal ParamTester
+		(Validator v) { this.v = v; }
+
+
+		Validator v;
+
+
+		public ParamTester Check(
+		bool validCondition, string invalidMsg = "Valor inválido") {
+			v.LasTestHasPassed = validCondition;
+			if (!validCondition) v.AddErrorMessage(invalidMsg);
+			return this;
+		}
+	}
+
+
+
+
+
+
+	public struct ParamTester<V> {
+
+		internal ParamTester
 		(Validator v) { this.v=v; }
 
 
 		private Validator v;
 
 
-		public Tester<V> Equalizer
-		(ValueAdjuster<V> equalizer) { v.CurrentEqualizer = equalizer; return this; }
+		public ParamTester<V> Equalizer(
+		ValueAdjuster<V> equalizer) { v.CurrentEqualizer = equalizer; return this; }
 
 
-		public Tester<V> Equalizer
-		(StrOp eq) { v.CurrentEqualizer = eq; return this; }
+		public ParamTester<V> Equalizer(
+		StrOp eq) { v.CurrentEqualizer = eq; return this; }
 
 
 
@@ -115,15 +170,17 @@ namespace Limcap.LightValidator {
 
 
 
-		public Tester<V> Test
-		(string msg, ValidationTest<V> test) {
+		public ParamTester<V> Check(
+		string msg, ValidationTest<V> test) {
 			try {
 				var value = Equalize(v.CurrentFieldValue, v.CurrentEqualizer);
 				var success = test(value);
-				if (!success) AddErrorMessage(msg);
+				if (!success) v.AddErrorMessage(msg);
+				v.LasTestHasPassed = success;
 			}
 			catch (Exception ex) {
-				AddErrorMessage("[Exception] " + ex.Message);
+				v.LasTestHasPassed = false;
+				v.AddErrorMessage("[Exception] " + ex.Message);
 			}
 			return this;
 		}
@@ -133,16 +190,18 @@ namespace Limcap.LightValidator {
 
 
 
-		public Tester<V> Test<R>
-		(string msg, ValidationTest<V, R> test, R reference) {
+		public ParamTester<V> Check<R>(
+		string msg, ValidationTest<V, R> test, R reference) {
 			try {
 				var value = Equalize(v.CurrentFieldValue, v.CurrentEqualizer);
 				reference = Equalize(reference, v.CurrentEqualizer); 
 				var success = test(value, reference);
-				if (!success) AddErrorMessage(msg);
+				if (!success) v.AddErrorMessage(msg);
+				v.LasTestHasPassed = success;
 			}
 			catch (Exception ex) {
-				AddErrorMessage("[Exception] " + ex.Message);
+				v.LasTestHasPassed = false;
+				v.AddErrorMessage("[Exception] " + ex.Message);
 			}
 			return this;
 		}
@@ -152,24 +211,11 @@ namespace Limcap.LightValidator {
 
 
 
-		public Tester<V> Test(string msg, bool success) {
-			if (!success) AddErrorMessage(msg);
+		public ParamTester<V> Check(
+		bool validCondition, string invalidMsg = "Valor inválido") {
+			v.LasTestHasPassed = validCondition;
+			if (!validCondition) v.AddErrorMessage(invalidMsg);
 			return this;
-		}
-
-
-
-
-
-
-		public void AddErrorMessage(string msg) {
-			if (v.CurrentFieldIsValid) {
-				v.CurrentFieldResult = new ValidationResult(v.CurrentFieldName);
-				v.InitializeResults();
-				v.Results.Add(v.CurrentFieldResult);
-				v.CurrentFieldIsValid = false;
-			}
-			v.CurrentFieldResult.ErrorMessages.Add(msg);
 		}
 	}
 
@@ -213,40 +259,40 @@ namespace Limcap.LightValidator {
 
 
 	public static class TesterExtensions {
-		public static Tester<object> NotNull(this Tester<object> field, string msg = null) {
-			field.Test(msg??$"Não pode ser nulo", Tests.NotNull); return field;
+		public static ParamTester<object> NotNull(this ParamTester<object> field, string msg = null) {
+			field.Check(msg??$"Não pode ser nulo", Tests.NotNull); return field;
 		}
-		public static Tester<IEnumerable<V>> NotEmpty<V>(this Tester<IEnumerable<V>> field, string msg = null) {
-			field.Test(msg??$"Não está preenchido", Tests.NotEmpty); return field;
+		public static ParamTester<IEnumerable<V>> NotEmpty<V>(this ParamTester<IEnumerable<V>> field, string msg = null) {
+			field.Check(msg??$"Não está preenchido", Tests.NotEmpty); return field;
 		}
-		public static Tester<string> NotBlank(this Tester<string> field, string msg = null) {
-			field.Test(msg??$"Não está preenchido", Tests.NotEmpty); return field;
+		public static ParamTester<string> NotBlank(this ParamTester<string> field, string msg = null) {
+			field.Check(msg??$"Não está preenchido", Tests.NotEmpty); return field;
 		}
-		public static Tester<string> IsMatch(this Tester<string> field, string pattern, string msg = null) {
-			field.Test(msg??"Não é uma string válida", Tests.IsMatch, pattern); return field;
+		public static ParamTester<string> IsMatch(this ParamTester<string> field, string pattern, string msg = null) {
+			field.Check(msg??"Não é uma string válida", Tests.IsMatch, pattern); return field;
 		}
-		public static Tester<V> In<V>(this Tester<V> field, IEnumerable<V> target, string msg = null) {
-			field.Test(msg??$"Não é um valor válido", Tests.In, target); return field;
+		public static ParamTester<V> In<V>(this ParamTester<V> field, IEnumerable<V> target, string msg = null) {
+			field.Check(msg??$"Não é um valor válido", Tests.In, target); return field;
 		}
-		public static Tester<V> Equals<V>(this Tester<V> field, V allowed, string msg = null) where V : IEquatable<V> {
-			field.Test(msg??$"Deve ser {allowed}", Tests.Equals, allowed); return field;
+		public static ParamTester<V> Equals<V>(this ParamTester<V> field, V allowed, string msg = null) where V : IEquatable<V> {
+			field.Check(msg??$"Deve ser {allowed}", Tests.Equals, allowed); return field;
 		}
-		public static Tester<IEnumerable<V>> MaxLength<V>(this Tester<IEnumerable<V>> field, int allowed, string msg = null) {
+		public static ParamTester<IEnumerable<V>> MaxLength<V>(this ParamTester<IEnumerable<V>> field, int allowed, string msg = null) {
 			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
-			field.Test(msg??$"Não pode ser maior que {allowed} itens", Tests.MaxLength, allowed); return field;
+			field.Check(msg??$"Não pode ser maior que {allowed} itens", Tests.MaxLength, allowed); return field;
 		}
-		public static Tester<IEnumerable<V>> MinLength<V>(this Tester<IEnumerable<V>> field, int allowed, string msg = null) {
+		public static ParamTester<IEnumerable<V>> MinLength<V>(this ParamTester<IEnumerable<V>> field, int allowed, string msg = null) {
 			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
-			field.Test(msg??$"Não pode ser menor que {allowed} {name}", Tests.MinLength, allowed); return field;
+			field.Check(msg??$"Não pode ser menor que {allowed} {name}", Tests.MinLength, allowed); return field;
 		}
-		public static Tester<V> Max<V>(this Tester<V> field, V allowed, string msg = null) where V : IComparable<V> {
-			field.Test(msg??$"Não pode ser maior que {allowed}", Tests.Max, allowed); return field;
+		public static ParamTester<V> Max<V>(this ParamTester<V> field, V allowed, string msg = null) where V : IComparable<V> {
+			field.Check(msg??$"Não pode ser maior que {allowed}", Tests.Max, allowed); return field;
 		}
-		public static Tester<V> Min<V>(this Tester<V> field, V allowed, string msg = null) where V : IComparable<V> {
-			field.Test(msg??$"Não pode ser menor que {allowed}", Tests.Min, allowed); return field;
+		public static ParamTester<V> Min<V>(this ParamTester<V> field, V allowed, string msg = null) where V : IComparable<V> {
+			field.Check(msg??$"Não pode ser menor que {allowed}", Tests.Min, allowed); return field;
 		}
-		public static Tester<string> IsEmail(this Tester<string> field, string msg = null) {
-			field.Test(msg??"Não é um e-mail válido", Tests.IsEmail); return field;
+		public static ParamTester<string> IsEmail(this ParamTester<string> field, string msg = null) {
+			field.Check(msg??"Não é um e-mail válido", Tests.IsEmail); return field;
 		}
 	}
 
