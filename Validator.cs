@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml.Schema;
 
 namespace Limcap.LightValidator {
 
@@ -30,7 +27,7 @@ namespace Limcap.LightValidator {
 		public bool CurrentFieldIsValid { get; internal set; }
 		public ValidationResult CurrentFieldResult { get; internal set; }
 		public string LastError => Results.LastOrDefault().ErrorMessages?.LastOrDefault();
-		public bool LasTestHasPassed { get; internal set; }
+		public bool LastTestHasPassed { get; internal set; }
 
 
 
@@ -40,9 +37,10 @@ namespace Limcap.LightValidator {
 			Results = null;
 			CurrentFieldName = null;
 			CurrentFieldValue = null;
+			CurrentEqualizer = null;
 			CurrentFieldIsValid = false;
 			CurrentFieldResult = new ValidationResult();
-			CurrentEqualizer = null;
+			LastTestHasPassed = false;
 		}
 
 
@@ -50,12 +48,13 @@ namespace Limcap.LightValidator {
 
 
 
-		public ParamTester<V> Param<V>(string name, V value) {
-			CurrentFieldName = name;
-			CurrentFieldValue = value;
+		public ParamTester<V> Param<V>(string paramNmae, V paramValue) {
+			CurrentFieldName = paramNmae;
+			CurrentFieldValue = paramValue;
 			CurrentFieldIsValid = true;
 			CurrentFieldResult = new ValidationResult();
 			CurrentEqualizer = null;
+			LastTestHasPassed = true;
 			return new ParamTester<V>(this);
 		}
 
@@ -64,12 +63,13 @@ namespace Limcap.LightValidator {
 
 
 
-		public ParamTester Param(string name) {
-			CurrentFieldName = name;
+		public ParamTester Param(string paramName) {
+			CurrentFieldName = paramName;
 			CurrentFieldValue = null;
+			CurrentEqualizer = null;
 			CurrentFieldIsValid = true;
 			CurrentFieldResult = new ValidationResult();
-			CurrentEqualizer = null;
+			LastTestHasPassed = true;
 			return new ParamTester(this);
 		}
 
@@ -120,11 +120,21 @@ namespace Limcap.LightValidator {
 
 
 		public ParamTester Check(
-		bool validCondition, string invalidMsg = "Valor inválido") {
-			v.LasTestHasPassed = validCondition;
-			if (!validCondition) v.AddErrorMessage(invalidMsg);
+		string invalidMsg, bool validationCondition) {
+			if (!v.LastTestHasPassed) return this;
+			v.LastTestHasPassed = validationCondition;
+			if (!validationCondition) v.AddErrorMessage(invalidMsg);
 			return this;
 		}
+		public ParamTester Check(bool validationCondition) => Check("Valor inválido", validationCondition);
+
+
+
+
+		public ParamTester ContinueIf(bool condition) {
+			if (!condition) v.LastTestHasPassed = false;
+			return this;
+	}
 	}
 
 
@@ -135,17 +145,17 @@ namespace Limcap.LightValidator {
 	public struct ParamTester<V> {
 
 		internal ParamTester
-		(Validator v) { this.v=v; }
+		(Validator v) { this.v = v; }
 
 
 		private Validator v;
 
 
-		public ParamTester<V> Equalizer(
+		public ParamTester<V> UseEqualizer(
 		ValueAdjuster<V> equalizer) { v.CurrentEqualizer = equalizer; return this; }
 
 
-		public ParamTester<V> Equalizer(
+		public ParamTester<V> UseEqualizer(
 		StrOp eq) { v.CurrentEqualizer = eq; return this; }
 
 
@@ -154,6 +164,7 @@ namespace Limcap.LightValidator {
 
 
 		private dynamic Equalize(dynamic dynVal, dynamic dynEq) {
+			if (dynVal == null || dynEq == null) return null;
 			if (dynVal is string str && dynEq is StrOp op)
 				dynVal = op.Apply(str);
 			else if (dynVal is V val && dynEq is ValueAdjuster<V> adj)
@@ -176,11 +187,11 @@ namespace Limcap.LightValidator {
 				var value = Equalize(v.CurrentFieldValue, v.CurrentEqualizer);
 				var success = test(value);
 				if (!success) v.AddErrorMessage(msg);
-				v.LasTestHasPassed = success;
+				v.LastTestHasPassed = success;
 			}
 			catch (Exception ex) {
-				v.LasTestHasPassed = false;
 				v.AddErrorMessage("[Exception] " + ex.Message);
+				v.LastTestHasPassed = false;
 			}
 			return this;
 		}
@@ -192,16 +203,17 @@ namespace Limcap.LightValidator {
 
 		public ParamTester<V> Check<R>(
 		string msg, ValidationTest<V, R> test, R reference) {
+			if (!v.LastTestHasPassed) return this;
 			try {
 				var value = Equalize(v.CurrentFieldValue, v.CurrentEqualizer);
 				reference = Equalize(reference, v.CurrentEqualizer); 
 				var success = test(value, reference);
 				if (!success) v.AddErrorMessage(msg);
-				v.LasTestHasPassed = success;
+				v.LastTestHasPassed = success;
 			}
 			catch (Exception ex) {
-				v.LasTestHasPassed = false;
 				v.AddErrorMessage("[Exception] " + ex.Message);
+				v.LastTestHasPassed = false;
 			}
 			return this;
 		}
@@ -212,11 +224,23 @@ namespace Limcap.LightValidator {
 
 
 		public ParamTester<V> Check(
-		bool validCondition, string invalidMsg = "Valor inválido") {
-			v.LasTestHasPassed = validCondition;
+		string invalidMsg, bool validCondition) {
+			if (!v.LastTestHasPassed) return this;
+			v.LastTestHasPassed = validCondition;
 			if (!validCondition) v.AddErrorMessage(invalidMsg);
 			return this;
 		}
+
+		public ParamTester<V> Check(bool validCondition) => Check("Valor inválido", validCondition);
+
+
+
+
+
+		public ParamTester<V> ContinueIf(bool condition) {
+			if (!condition) v.LastTestHasPassed = false;
+			return this;
+	}
 	}
 
 
@@ -226,7 +250,7 @@ namespace Limcap.LightValidator {
 
 	[DebuggerDisplay("{DD(), nq")]
 	public struct ValidationResult {
-		public ValidationResult(string fieldName) { FieldName=fieldName; ErrorMessages = new List<string>(); }
+		public ValidationResult(string fieldName) { FieldName = fieldName; ErrorMessages = new List<string>(); }
 		public readonly string FieldName;
 		public readonly List<string> ErrorMessages;
 #if DEBUG
@@ -324,7 +348,7 @@ namespace Limcap.LightValidator {
 		public static string RemoveDiacritics(this string text) {
 			var normalizedString = text.Normalize(NormalizationForm.FormD);
 			var sb = new StringBuilder(normalizedString.Length);
-			for (int i = 0; i<normalizedString.Length; i++) {
+			for (int i = 0; i < normalizedString.Length; i++) {
 				char c = normalizedString[i];
 				var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
 				if (unicodeCategory != UnicodeCategory.NonSpacingMark) sb.Append(c);
@@ -338,7 +362,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public enum StrOp { Trim=1, Upper=2, RemoveDiacritics=4, ToASCII = 8, /* OnlyWord = 16, OnlySentence = 32*/ }
+	public enum StrOp { Trim = 1, ToLower = 2, ToUpper = 4, RemoveDiacritics = 8, ToASCII = 16, /* OnlyWord = 16, OnlySentence = 32*/ }
 	public delegate T ValueAdjuster<T>(T value);
 	public delegate bool ValidationTest<V>(V value);
 	public delegate bool ValidationTest<V, R>(V value, R allowed = default);
