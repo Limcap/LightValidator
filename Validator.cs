@@ -47,18 +47,18 @@ namespace Limcap.LightValidator {
 
 
 
-		public ParamTester<dynamic> Param(string paramNmae) => Param<dynamic>(paramNmae, null);
+		public Param<dynamic> Param(string paramNmae) => Param<dynamic>(paramNmae, null);
 
 
 
-		public ParamTester<V> Param<V>(string paramNmae, V paramValue) {
+		public Param<V> Param<V>(string paramNmae, V paramValue) {
 			_paramName = paramNmae;
 			_paramValue = paramValue;
 			_paramIsValid = true;
 			_paramResult = new ValidationResult();
 			_paramEqualizer = null;
 			LastTestHasPassed = true;
-			return new ParamTester<V>(this);
+			return new Param<V>(this);
 		}
 
 
@@ -94,9 +94,9 @@ namespace Limcap.LightValidator {
 
 
 
-	public struct ParamTester<V> {
+	public struct Param<V> {
 
-		internal ParamTester
+		internal Param
 		(Validator v) { this.v = v; }
 
 
@@ -109,12 +109,12 @@ namespace Limcap.LightValidator {
 
 
 
-		public ParamTester<V> UseEqualizer(
+		public Param<V> UseEqualizer(
 		ValueAdjuster<V> equalizer) { v._paramEqualizer = equalizer; return this; }
 
 
 
-		public ParamTester<V> UseEqualizer(
+		public Param<V> UseEqualizer(
 		StrOp eq) { v._paramEqualizer = eq; return this; }
 
 
@@ -134,13 +134,10 @@ namespace Limcap.LightValidator {
 
 
 
-
-
-
-		public ParamTester<V> Check(
-		string msg, ValidationTest<V> test) {
+		public Param<V> Check
+		(string msg, ValidationTest<V> test) {
 			try {
-				var value = Equalize(v.CurrentFieldValue, v.CurrentEqualizer);
+				var value = Equalize(v._paramValue, v._paramEqualizer);
 				var success = test(value);
 				if (!success) v.AddErrorMessage(msg);
 				v.LastTestHasPassed = success;
@@ -157,12 +154,12 @@ namespace Limcap.LightValidator {
 
 
 
-		public ParamTester<V> Check<R>(
+		public Param<V> Check<R>(
 		string msg, ValidationTest<V, R> test, R reference) {
 			if (!v.LastTestHasPassed) return this;
 			try {
-				var value = Equalize(v.CurrentFieldValue, v.CurrentEqualizer);
-				reference = Equalize(reference, v.CurrentEqualizer);
+				var value = Equalize(v._paramValue, v._paramEqualizer);
+				reference = Equalize(reference, v._paramEqualizer);
 				var success = test(value, reference);
 				if (!success) v.AddErrorMessage(msg);
 				v.LastTestHasPassed = success;
@@ -179,7 +176,7 @@ namespace Limcap.LightValidator {
 
 
 
-		public ParamTester<V> Check(
+		public Param<V> Check(
 		string invalidMsg, bool validCondition) {
 			if (!v.LastTestHasPassed) return this;
 			v.LastTestHasPassed = validCondition;
@@ -187,13 +184,13 @@ namespace Limcap.LightValidator {
 			return this;
 		}
 
-		public ParamTester<V> Check(bool validCondition) => Check("Valor inválido", validCondition);
+		public Param<V> Check(bool validCondition) => Check("Valor inválido", validCondition);
 
 
 
 
 
-		public ParamTester<V> ContinueIf(bool condition) {
+		public Param<V> ContinueIf(bool condition) {
 			if (!condition) v.LastTestHasPassed = false;
 			return this;
 		}
@@ -246,80 +243,80 @@ namespace Limcap.LightValidator {
 
 	public static class ParamTesterExtensions {
 		// generic
-		public static ParamTester<V> NotNull<V>(this ParamTester<V> field, string msg = null) {
+		public static Param<V> NotNull<V>(this Param<V> field, string msg = null) {
 			field.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return field;
 		}
-		public static ParamTester<V> In<V>(this ParamTester<V> field, IEnumerable<V> target, string msg = null) {
+		public static Param<V> In<V>(this Param<V> field, IEnumerable<V> target, string msg = null) {
 			field.Check(msg ?? $"Não é um valor válido", Tests.In, target); return field;
 		}
 
 		// IEquatable
-		public static ParamTester<V> Equals<V>(this ParamTester<V> field, V allowed, string msg = null) where V : IEquatable<V> {
+		public static Param<V> Equals<V>(this Param<V> field, V allowed, string msg = null) where V : IEquatable<V> {
 			field.Check(msg ?? $"Deve ser {allowed}", Tests.Equals, allowed); return field;
 		}
 
 		// IComparable
-		public static ParamTester<V> Min<V>(this ParamTester<V> field, V allowed, string msg = null) where V : IComparable<V> {
+		public static Param<V> Min<V>(this Param<V> field, V allowed, string msg = null) where V : IComparable<V> {
 			field.Check(msg ?? $"Não pode ser menor que {allowed}", Tests.Min, allowed); return field;
 		}
-		public static ParamTester<V> Max<V>(this ParamTester<V> field, V allowed, string msg = null) where V : IComparable<V> {
+		public static Param<V> Max<V>(this Param<V> field, V allowed, string msg = null) where V : IComparable<V> {
 			field.Check(msg ?? $"Não pode ser maior que {allowed}", Tests.Max, allowed); return field;
 		}
-		public static ParamTester<V> Exactly<V>(this ParamTester<V> field, V reference, string msg = null) where V : IComparable<V> {
+		public static Param<V> Exactly<V>(this Param<V> field, V reference, string msg = null) where V : IComparable<V> {
 			field.Check(msg ?? $"Deve ser exatamente {reference}", Tests.Exactly, reference); return field;
 		}
 
 		// IEnumerable
-		public static ParamTester<IEnumerable<V>> NotEmpty<V>(this ParamTester<IEnumerable<V>> field, string msg = null) {
+		public static Param<IEnumerable<V>> NotEmpty<V>(this Param<IEnumerable<V>> field, string msg = null) {
 			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
 		}
-		public static ParamTester<IEnumerable<V>> Length<V>(this ParamTester<IEnumerable<V>> field, int length, string msg = null) {
+		public static Param<IEnumerable<V>> Length<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
 			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
 			field.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return field;
 		}
-		public static ParamTester<IEnumerable<V>> MinLength<V>(this ParamTester<IEnumerable<V>> field, int allowed, string msg = null) {
+		public static Param<IEnumerable<V>> MinLength<V>(this Param<IEnumerable<V>> field, int allowed, string msg = null) {
 			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
 			field.Check(msg ?? $"Não pode ser menor que {allowed} {name}", Tests.MinLength, allowed); return field;
 		}
-		public static ParamTester<IEnumerable<V>> MaxLength<V>(this ParamTester<IEnumerable<V>> field, int allowed, string msg = null) {
+		public static Param<IEnumerable<V>> MaxLength<V>(this Param<IEnumerable<V>> field, int allowed, string msg = null) {
 			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
 			field.Check(msg ?? $"Não pode ser maior que {allowed} itens", Tests.MaxLength, allowed); return field;
 		}
 
 		// int
-		public static ParamTester<int> Min(this ParamTester<int> field, int number, string msg = null) {
+		public static Param<int> Min(this Param<int> field, int number, string msg = null) {
 			field.Check(msg ?? $"Não pode ser menor que {number}", Tests.Min, number); return field;
 		}
-		public static ParamTester<int> Max(this ParamTester<int> field, int number, string msg = null) {
+		public static Param<int> Max(this Param<int> field, int number, string msg = null) {
 			field.Check(msg ?? $"Não pode ser maior que {number}", Tests.Max, number); return field;
 		}
-		public static ParamTester<int> Exactly(this ParamTester<int> field, int number, string msg = null) {
+		public static Param<int> Exactly(this Param<int> field, int number, string msg = null) {
 			field.Check(msg ?? $"Deve ser exatamente {number}", Tests.Exactly, number); return field;
 		}
 
 		// string
-		public static ParamTester<string> NotEmpty(this ParamTester<string> field, string msg = null) {
+		public static Param<string> NotEmpty(this Param<string> field, string msg = null) {
 			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
 		}
-		public static ParamTester<string> NotBlank(this ParamTester<string> field, string msg = null) {
+		public static Param<string> NotBlank(this Param<string> field, string msg = null) {
 			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
 		}
-		public static ParamTester<string> Length(this ParamTester<string> field, int length, string msg = null) {
+		public static Param<string> Length(this Param<string> field, int length, string msg = null) {
 			field.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.Length, length); return field;
 		}
-		public static ParamTester<string> MinLength(this ParamTester<string> field, int length, string msg = null) {
+		public static Param<string> MinLength(this Param<string> field, int length, string msg = null) {
 			field.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.MinLength, length); return field;
 		}
-		public static ParamTester<string> MaxLength(this ParamTester<string> field, int length, string msg = null) {
+		public static Param<string> MaxLength(this Param<string> field, int length, string msg = null) {
 			field.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.MaxLength, length); return field;
 		}
-		public static ParamTester<string> IsMatch(this ParamTester<string> field, string pattern, string msg = null) {
+		public static Param<string> IsMatch(this Param<string> field, string pattern, string msg = null) {
 			field.Check(msg ?? "Não é uma string válida", Tests.IsMatch, pattern); return field;
 		}
-		public static ParamTester<string> IsEmail(this ParamTester<string> field, string msg = null) {
+		public static Param<string> IsEmail(this Param<string> field, string msg = null) {
 			field.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return field;
 		}
-		public static ParamTester<string> IsDigitsOnly(this ParamTester<string> field, string msg = null) {
+		public static Param<string> IsDigitsOnly(this Param<string> field, string msg = null) {
 			field.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return field;
 		}
 	}
