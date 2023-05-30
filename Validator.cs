@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Ps = Limcap.LightValidator.Param<string>;
 
 namespace Limcap.LightValidator {
 
@@ -134,6 +135,38 @@ namespace Limcap.LightValidator {
 
 
 
+		public Param<T> Cast<T>() => new Param<T>(v);
+
+
+
+		public Param<T> Convert<T>(Func<V, T> converter, string msg = null) {
+			var newParam = new Param<T>(v);
+			try { v._paramValue = converter(v._paramValue); }
+			catch (Exception ex) {
+				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
+				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+			}
+			return newParam;
+		}
+
+
+
+		public Param<T> Convert<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
+			var newParam = new Param<T>(v);
+			try { v._paramValue = converter(v._paramValue, supplement); }
+			catch (Exception ex) {
+				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
+				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+			}
+			return newParam;
+		}
+
+
+
+		static string DefaultConvertMsg<T>(string info) => $"Não representa um objeto do tipo '{typeof(T).Name}' válido - {info}";
+
+
+
 		public Param<V> Check
 		(string msg, ValidationTest<V> test) {
 			try {
@@ -206,9 +239,9 @@ namespace Limcap.LightValidator {
 		public ValidationResult(string fieldName) { FieldName = fieldName; ErrorMessages = new List<string>(); }
 		public readonly string FieldName;
 		public readonly List<string> ErrorMessages;
-		#if DEBUG
+#if DEBUG
 		public string DD() => $"{nameof(FieldName)}=\"{FieldName}\", {nameof(ErrorMessages)}.Count={ErrorMessages.Count}";
-		#endif
+#endif
 	}
 
 
@@ -241,7 +274,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class ParamTesterExtensions {
+	public static class ParamExtensions_Checks {
 		// generic
 		public static Param<V> NotNull<V>(this Param<V> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
@@ -320,6 +353,36 @@ namespace Limcap.LightValidator {
 
 
 
+	public static class ParamExtensions_Conversions {
+		public static Ps AsString<T>(this Param<T> p) => p.Convert(o => o.ToString());
+		public static Param<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
+		public static Param<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
+		public static Param<ushort> AsUshort(this Ps p) => _to(p, o => ushort.Parse(o));
+		public static Param<int> AsInt(this Ps p) => _to(p, o => int.Parse(o));
+		public static Param<uint> AsUint(this Ps p) => _to(p, o => uint.Parse(o));
+		public static Param<long> AsLong(this Ps p) => _to(p, o => long.Parse(o));
+		public static Param<ulong> AsUlong(this Ps p) => _to(p, o => ulong.Parse(o));
+		public static Param<float> AsFloat(this Ps p) => _to(p, o => float.Parse(o));
+		public static Param<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
+		public static Param<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
+		public static Param<DateTime> AsDateTime(this Ps p, string format) => p.Convert(_parseDT, format);
+
+		//static Param<N> _asT<N>(Ps p, Func<string,N> converter) => p.Convert(converter);
+		static Param<T> _to<T>(Ps p, Func<string, T> converter) => p.Convert(converter, _msgN<T>());
+		static string _msgN<N>() => $"Não é um número válido do tipo '{typeof(N).Name}'";
+		static DateTime _parseDT(string v, string f) => DateTime.ParseExact(v, f, CultureInfo.CurrentCulture);
+	}
+
+
+
+	public static class ParamExtensions_StringOps {
+		public static Ps Trim(this Ps p, char c = (char)0) { p.Value = c == 0 ? p.Value.Trim() : p.Value.Trim(c); return p; }
+		public static Ps ToLower(this Ps p) { p.Value = p.Value?.ToLower(); return p; }
+		public static Ps ToUpper(this Ps p) { p.Value = p.Value?.ToUpper(); return p; }
+		public static Ps RemoveDiacritics(this Ps p) { p.Value = p.Value?.RemoveDiacritics(); return p; }
+		public static Ps ToASCII(this Ps p) { p.Value = p.Value?.ToASCII(); return p; }
+
+	}
 
 
 
@@ -342,9 +405,10 @@ namespace Limcap.LightValidator {
 		public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
 		public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
 		public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
-		public static IEnumerable<string> ToASCII(this IEnumerable<string> texts) => texts.Select(u => u.ToASCII());
-		public static string ToASCII(this string text) => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", "*");
+		public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
 		public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
+		public static string ToASCII(this string text, string replaceInvalidWith = "~") => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]", replaceInvalidWith);
+		public static string RemoveNonASCII(this string text) => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", string.Empty);
 		public static string RemoveDiacritics(this string text) {
 			var normalizedString = text.Normalize(NormalizationForm.FormD);
 			var sb = new StringBuilder(normalizedString.Length);
@@ -362,7 +426,10 @@ namespace Limcap.LightValidator {
 
 
 
-	public enum StrOp { Trim = 1, ToLower = 2, ToUpper = 4, RemoveDiacritics = 8, ToASCII = 16, /* OnlyWord = 16, OnlySentence = 32*/ }
+	public enum StrOp { Trim = 1, ToLower = 2, ToUpper = 4, RemoveDiacritics = 8, ToASCII = 16,
+		RemoveNonASCII = 32, RemoveNonWord = 64, RemoveNonDigits = 128,
+		Normalize = 11, NormalizeASCII = 27
+	}
 	public delegate T ValueAdjuster<T>(T value);
 	public delegate bool ValidationTest<V>(V value);
 	public delegate bool ValidationTest<V, R>(V value, R allowed = default);
