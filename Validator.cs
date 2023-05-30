@@ -243,78 +243,78 @@ namespace Limcap.LightValidator {
 
 	public static class ParamTesterExtensions {
 		// generic
-		public static Param<V> NotNull<V>(this Param<V> field, string msg = null) {
-			field.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return field;
+		public static Param<V> NotNull<V>(this Param<V> p, string msg = null) {
+			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
 		}
-		public static Param<V> In<V>(this Param<V> field, IEnumerable<V> group, string msg = null) {
-			field.Check(msg ?? $"Não é um valor válido", Tests.In, group); return field;
+		public static Param<V> In<V>(this Param<V> p, IEnumerable<V> group, string msg = null) {
+			p.Check(msg ?? $"Não é um valor válido", Tests.In, group); return p;
 		}
 
 		// IEquatable
-		public static Param<V> Equals<V>(this Param<V> field, V value, string msg = null) where V : IEquatable<V> {
-			field.Check(msg ?? $"Deve ser {value}", Tests.Equals, value); return field;
+		public static Param<V> Equals<V>(this Param<V> p, V value, string msg = null) where V : IEquatable<V> {
+			p.Check(msg ?? $"Deve ser {value}", Tests.Equals, value); return p;
 		}
 
 		// IComparable
-		public static Param<V> Min<V>(this Param<V> field, V minValue, string msg = null) where V : IComparable<V> {
-			field.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.Min, minValue); return field;
+		public static Param<V> Min<V>(this Param<V> p, V minValue, string msg = null) where V : IComparable<V> {
+			p.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.Min, minValue); return p;
 		}
-		public static Param<V> Max<V>(this Param<V> field, V maxValue, string msg = null) where V : IComparable<V> {
-			field.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.Max, maxValue); return field;
+		public static Param<V> Max<V>(this Param<V> p, V maxValue, string msg = null) where V : IComparable<V> {
+			p.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.Max, maxValue); return p;
 		}
-		public static Param<V> Exactly<V>(this Param<V> field, V value, string msg = null) where V : IComparable<V> {
-			field.Check(msg ?? $"Deve ser exatamente {value}", Tests.Exactly, value); return field;
+		public static Param<V> Exactly<V>(this Param<V> p, V value, string msg = null) where V : IComparable<V> {
+			p.Check(msg ?? $"Deve ser exatamente {value}", Tests.Exactly, value); return p;
 		}
 
 		// IEnumerable
-		public static Param<IEnumerable<V>> NotEmpty<V>(this Param<IEnumerable<V>> field, string msg = null) {
-			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
+		public static Param<IEnumerable<V>> NotEmpty<V>(this Param<IEnumerable<V>> p, string msg = null) {
+			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
 		}
-		public static Param<IEnumerable<V>> Length<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
-			field.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return field;
+		public static Param<IEnumerable<V>> Length<V>(this Param<IEnumerable<V>> p, int length, string msg = null) {
+			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return p;
 		}
-		public static Param<IEnumerable<V>> MinLength<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
-			field.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.MinLength, length); return field;
+		public static Param<IEnumerable<V>> MinLength<V>(this Param<IEnumerable<V>> p, int length, string msg = null) {
+			p.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.MinLength, length); return p;
 		}
-		public static Param<IEnumerable<V>> MaxLength<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
-			field.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.MaxLength, length); return field;
+		public static Param<IEnumerable<V>> MaxLength<V>(this Param<IEnumerable<V>> p, int length, string msg = null) {
+			p.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.MaxLength, length); return p;
 		}
 
 		// int
-		public static Param<int> Min(this Param<int> field, int number, string msg = null) {
-			field.Check(msg ?? $"Não pode ser menor que {number}", Tests.Min, number); return field;
+		public static Param<int> Min(this Param<int> p, int number, string msg = null) {
+			p.Check(msg ?? $"Não pode ser menor que {number}", Tests.Min, number); return p;
 		}
-		public static Param<int> Max(this Param<int> field, int number, string msg = null) {
-			field.Check(msg ?? $"Não pode ser maior que {number}", Tests.Max, number); return field;
+		public static Param<int> Max(this Param<int> p, int number, string msg = null) {
+			p.Check(msg ?? $"Não pode ser maior que {number}", Tests.Max, number); return p;
 		}
-		public static Param<int> Exactly(this Param<int> field, int number, string msg = null) {
-			field.Check(msg ?? $"Deve ser exatamente {number}", Tests.Exactly, number); return field;
+		public static Param<int> Exactly(this Param<int> p, int number, string msg = null) {
+			p.Check(msg ?? $"Deve ser exatamente {number}", Tests.Exactly, number); return p;
 		}
 
 		// string
-		public static Param<string> NotEmpty(this Param<string> field, string msg = null) {
-			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
+		public static Param<string> NotEmpty(this Param<string> p, string msg = null) {
+			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
 		}
-		public static Param<string> NotBlank(this Param<string> field, string msg = null) {
-			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
+		public static Param<string> NotBlank(this Param<string> p, string msg = null) {
+			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
 		}
-		public static Param<string> Length(this Param<string> field, int length, string msg = null) {
-			field.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.Length, length); return field;
+		public static Param<string> Length(this Param<string> p, int length, string msg = null) {
+			p.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.Length, length); return p;
 		}
-		public static Param<string> MinLength(this Param<string> field, int length, string msg = null) {
-			field.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.MinLength, length); return field;
+		public static Param<string> MinLength(this Param<string> p, int length, string msg = null) {
+			p.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.MinLength, length); return p;
 		}
-		public static Param<string> MaxLength(this Param<string> field, int length, string msg = null) {
-			field.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.MaxLength, length); return field;
+		public static Param<string> MaxLength(this Param<string> p, int length, string msg = null) {
+			p.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.MaxLength, length); return p;
 		}
-		public static Param<string> IsMatch(this Param<string> field, string pattern, string msg = null) {
-			field.Check(msg ?? "Não é uma string válida", Tests.IsMatch, pattern); return field;
+		public static Param<string> IsMatch(this Param<string> p, string pattern, string msg = null) {
+			p.Check(msg ?? "Não é uma string válida", Tests.IsMatch, pattern); return p;
 		}
-		public static Param<string> IsEmail(this Param<string> field, string msg = null) {
-			field.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return field;
+		public static Param<string> IsEmail(this Param<string> p, string msg = null) {
+			p.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return p;
 		}
-		public static Param<string> IsDigitsOnly(this Param<string> field, string msg = null) {
-			field.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return field;
+		public static Param<string> IsDigitsOnly(this Param<string> p, string msg = null) {
+			p.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return p;
 		}
 	}
 
