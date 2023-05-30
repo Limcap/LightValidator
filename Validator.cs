@@ -364,6 +364,18 @@ namespace Limcap.LightValidator {
 
 
 
+
+
+
+	public static class ParamExtensions_General {
+		public static Param<T> LocalVar<T>(this Param<T> p, out T variable) { variable = p.Value; return p; }
+	}
+
+
+
+
+
+
 	public static class ParamExtensions_StringOps {
 		public static Ps Trim(this Ps p, char c = (char)0) { p.Value = c == 0 ? p.Value.Trim() : p.Value.Trim(c); return p; }
 		public static Ps ToLower(this Ps p) { p.Value = p.Value?.ToLower(); return p; }
