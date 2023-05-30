@@ -246,24 +246,24 @@ namespace Limcap.LightValidator {
 		public static Param<V> NotNull<V>(this Param<V> field, string msg = null) {
 			field.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return field;
 		}
-		public static Param<V> In<V>(this Param<V> field, IEnumerable<V> target, string msg = null) {
-			field.Check(msg ?? $"Não é um valor válido", Tests.In, target); return field;
+		public static Param<V> In<V>(this Param<V> field, IEnumerable<V> group, string msg = null) {
+			field.Check(msg ?? $"Não é um valor válido", Tests.In, group); return field;
 		}
 
 		// IEquatable
-		public static Param<V> Equals<V>(this Param<V> field, V allowed, string msg = null) where V : IEquatable<V> {
-			field.Check(msg ?? $"Deve ser {allowed}", Tests.Equals, allowed); return field;
+		public static Param<V> Equals<V>(this Param<V> field, V value, string msg = null) where V : IEquatable<V> {
+			field.Check(msg ?? $"Deve ser {value}", Tests.Equals, value); return field;
 		}
 
 		// IComparable
-		public static Param<V> Min<V>(this Param<V> field, V allowed, string msg = null) where V : IComparable<V> {
-			field.Check(msg ?? $"Não pode ser menor que {allowed}", Tests.Min, allowed); return field;
+		public static Param<V> Min<V>(this Param<V> field, V minValue, string msg = null) where V : IComparable<V> {
+			field.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.Min, minValue); return field;
 		}
-		public static Param<V> Max<V>(this Param<V> field, V allowed, string msg = null) where V : IComparable<V> {
-			field.Check(msg ?? $"Não pode ser maior que {allowed}", Tests.Max, allowed); return field;
+		public static Param<V> Max<V>(this Param<V> field, V maxValue, string msg = null) where V : IComparable<V> {
+			field.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.Max, maxValue); return field;
 		}
-		public static Param<V> Exactly<V>(this Param<V> field, V reference, string msg = null) where V : IComparable<V> {
-			field.Check(msg ?? $"Deve ser exatamente {reference}", Tests.Exactly, reference); return field;
+		public static Param<V> Exactly<V>(this Param<V> field, V value, string msg = null) where V : IComparable<V> {
+			field.Check(msg ?? $"Deve ser exatamente {value}", Tests.Exactly, value); return field;
 		}
 
 		// IEnumerable
@@ -271,16 +271,13 @@ namespace Limcap.LightValidator {
 			field.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return field;
 		}
 		public static Param<IEnumerable<V>> Length<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
-			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
 			field.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return field;
 		}
-		public static Param<IEnumerable<V>> MinLength<V>(this Param<IEnumerable<V>> field, int allowed, string msg = null) {
-			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
-			field.Check(msg ?? $"Não pode ser menor que {allowed} {name}", Tests.MinLength, allowed); return field;
+		public static Param<IEnumerable<V>> MinLength<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
+			field.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.MinLength, length); return field;
 		}
-		public static Param<IEnumerable<V>> MaxLength<V>(this Param<IEnumerable<V>> field, int allowed, string msg = null) {
-			var name = typeof(V) == typeof(string) ? "caracteres" : "itens";
-			field.Check(msg ?? $"Não pode ser maior que {allowed} itens", Tests.MaxLength, allowed); return field;
+		public static Param<IEnumerable<V>> MaxLength<V>(this Param<IEnumerable<V>> field, int length, string msg = null) {
+			field.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.MaxLength, length); return field;
 		}
 
 		// int
