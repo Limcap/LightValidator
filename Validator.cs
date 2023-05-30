@@ -228,9 +228,9 @@ namespace Limcap.LightValidator {
 		public ValidationResult(string paramName) { Param = paramName; Messages = new List<string>(); }
 		public readonly string Param;
 		public readonly List<string> Messages;
-		#if DEBUG
+#if DEBUG
 		public string DD() => $"{nameof(Param)}=\"{Param}\", {nameof(Messages)}.Count={Messages.Count}";
-		#endif
+#endif
 	}
 
 
@@ -382,6 +382,13 @@ namespace Limcap.LightValidator {
 		public static Ps ToUpper(this Ps p) { p.Value = p.Value?.ToUpper(); return p; }
 		public static Ps RemoveDiacritics(this Ps p) { p.Value = p.Value?.RemoveDiacritics(); return p; }
 		public static Ps ToASCII(this Ps p) { p.Value = p.Value?.ToASCII(); return p; }
+		public static Ps Crop(this Ps p, int startIndex, int length) { p.Value = p.Value?.Crop(startIndex, length); return p; }
+		public static Ps Replace(this Ps p, string oldStr, string newStr) { p.Value = p.Value?.Replace(oldStr, newStr); return p; }
+		public static Ps Replace(this Ps p, char oldChar, char newChar) { p.Value = p.Value?.Replace(oldChar, newChar); return p; }
+		public static Ps Replace(this Ps p, params ValueTuple<char, char>[] pairs) { p.Value = p.Value.Replace(pairs); return p; }
+	}
+
+
 
 
 
@@ -399,6 +406,35 @@ namespace Limcap.LightValidator {
 
 
 
+		public static string StripChars(this string str, string chars) {
+			return Regex.Replace(str, Regex.Escape(chars), "");
+		}
+
+		public static string StripChars(this string str, params char[] chars) {
+			return StripChars(str, string.Join(string.Empty, chars));
+		}
+
+
+
+		public static string Crop(this string str, int startIndex, int length) {
+			return startIndex + length > str.Length - 1 ? str.Substring(startIndex) : str.Substring(startIndex, length);
+		}
+
+
+
+
+		public static string Replace(this string str, params ValueTuple<char, char>[] pairs) {
+			var array = str.ToCharArray();
+			for (int i = 0; i < array.Length; i++) {
+				var pair = findPair(array[i]);
+				if (pair != null) array[i] = pair.Value.Item2;
+			}
+			(char, char)? findPair(char key) {
+				for (int j = 0; j < pairs.Length; j++) if (pairs[j].Item1 == key) return pairs[j];
+				return null;
+			}
+			return array.ToString();
+		}
 
 
 
