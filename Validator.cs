@@ -18,75 +18,60 @@ namespace Limcap.LightValidator {
 
 
 
+		// Current Param fields
+		internal string _paramName;
+		internal dynamic _paramValue;
+		internal dynamic _paramEqualizer;
+		internal bool _paramIsValid;
+		internal ValidationResult _paramResult;
+
+
 
 		public dynamic Object { get; private set; }
 		public List<ValidationResult> Results { get; private set; }
-		public string CurrentFieldName { get; internal set; }
-		public dynamic CurrentFieldValue { get; internal set; }
-		public dynamic CurrentEqualizer { get; internal set; }
-		public bool CurrentFieldIsValid { get; internal set; }
-		public ValidationResult CurrentFieldResult { get; internal set; }
 		public string LastError => Results.LastOrDefault().ErrorMessages?.LastOrDefault();
 		public bool LastTestHasPassed { get; internal set; }
-
 
 
 
 		public void Reset(dynamic obj = null) {
 			Object = obj;
 			Results = null;
-			CurrentFieldName = null;
-			CurrentFieldValue = null;
-			CurrentEqualizer = null;
-			CurrentFieldIsValid = false;
-			CurrentFieldResult = new ValidationResult();
-			LastTestHasPassed = false;
+			_paramName = null;
+			_paramValue = null;
+			_paramEqualizer = null;
+			_paramIsValid = false;
+			_paramResult = new ValidationResult();
+			LastTestHasPassed = true;
 		}
 
 
 
+		public ParamTester<dynamic> Param(string paramNmae) => Param<dynamic>(paramNmae, null);
 
 
 
 		public ParamTester<V> Param<V>(string paramNmae, V paramValue) {
-			CurrentFieldName = paramNmae;
-			CurrentFieldValue = paramValue;
-			CurrentFieldIsValid = true;
-			CurrentFieldResult = new ValidationResult();
-			CurrentEqualizer = null;
+			_paramName = paramNmae;
+			_paramValue = paramValue;
+			_paramIsValid = true;
+			_paramResult = new ValidationResult();
+			_paramEqualizer = null;
 			LastTestHasPassed = true;
 			return new ParamTester<V>(this);
 		}
 
 
 
-
-
-
-		public ParamTester Param(string paramName) {
-			CurrentFieldName = paramName;
-			CurrentFieldValue = null;
-			CurrentEqualizer = null;
-			CurrentFieldIsValid = true;
-			CurrentFieldResult = new ValidationResult();
-			LastTestHasPassed = true;
-			return new ParamTester(this);
-		}
-
-
-
-
-
-
 		internal void AddErrorMessage(
 		string msg) {
-			if (CurrentFieldIsValid) {
-				CurrentFieldResult = new ValidationResult(CurrentFieldName);
+			if (_paramIsValid) {
+				_paramResult = new ValidationResult(_paramName);
 				InitializeResults();
-				Results.Add(CurrentFieldResult);
-				CurrentFieldIsValid = false;
+				Results.Add(_paramResult);
+				_paramIsValid = false;
 			}
-			CurrentFieldResult.ErrorMessages.Add(msg);
+			_paramResult.ErrorMessages.Add(msg);
 		}
 
 
@@ -109,57 +94,28 @@ namespace Limcap.LightValidator {
 
 
 
-
-	public struct ParamTester {
-
-		internal ParamTester
-		(Validator v) { this.v = v; }
-
-
-		Validator v;
-
-
-		public ParamTester Check(
-		string invalidMsg, bool validationCondition) {
-			if (!v.LastTestHasPassed) return this;
-			v.LastTestHasPassed = validationCondition;
-			if (!validationCondition) v.AddErrorMessage(invalidMsg);
-			return this;
-		}
-		public ParamTester Check(bool validationCondition) => Check("Valor inválido", validationCondition);
-
-
-
-
-		public ParamTester ContinueIf(bool condition) {
-			if (!condition) v.LastTestHasPassed = false;
-			return this;
-		}
-	}
-
-
-
-
-
-
 	public struct ParamTester<V> {
 
 		internal ParamTester
 		(Validator v) { this.v = v; }
 
 
+
 		private Validator v;
+		public string Name { get => v._paramName; set => v._paramName = value; }
+		public V Value { get => v._paramValue; set => v._paramValue = value; }
+		public bool IsValid => v._paramIsValid;
+		public ValidationResult Result => v._paramResult;
+
 
 
 		public ParamTester<V> UseEqualizer(
-		ValueAdjuster<V> equalizer) { v.CurrentEqualizer = equalizer; return this; }
+		ValueAdjuster<V> equalizer) { v._paramEqualizer = equalizer; return this; }
+
 
 
 		public ParamTester<V> UseEqualizer(
-		StrOp eq) { v.CurrentEqualizer = eq; return this; }
-
-
-
+		StrOp eq) { v._paramEqualizer = eq; return this; }
 
 
 
