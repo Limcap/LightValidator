@@ -133,6 +133,7 @@ namespace Limcap.LightValidator {
 
 		public Param<T> Cast<T>() => new Param<T>(v);
 
+		public Param<V> Alter(V value) { Value = value; return this; }
 
 
 
