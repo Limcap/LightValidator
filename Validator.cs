@@ -23,6 +23,7 @@ namespace Limcap.LightValidator {
 		internal string _paramName;
 		internal dynamic _paramValue;
 		internal dynamic _paramEqualizer;
+		internal bool _skipChecks;
 		internal bool _paramIsValid;
 		internal ValidationResult _paramResult;
 
@@ -42,6 +43,7 @@ namespace Limcap.LightValidator {
 			_paramValue = null;
 			_paramEqualizer = null;
 			_paramIsValid = false;
+			_skipChecks = false;
 			_paramResult = new ValidationResult();
 			LastTestHasPassed = true;
 		}
@@ -55,9 +57,10 @@ namespace Limcap.LightValidator {
 		public Param<V> Param<V>(string name, V value) {
 			_paramName = name;
 			_paramValue = value;
-			_paramIsValid = true;
-			_paramResult = new ValidationResult();
 			_paramEqualizer = null;
+			_paramIsValid = true;
+			_skipChecks = false;
+			_paramResult = new ValidationResult();
 			LastTestHasPassed = true;
 			return new Param<V>(this);
 		}
@@ -143,6 +146,7 @@ namespace Limcap.LightValidator {
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._skipChecks = true;
 			}
 			return newParam;
 		}
@@ -155,6 +159,7 @@ namespace Limcap.LightValidator {
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._skipChecks = true;
 			}
 			return newParam;
 		}
@@ -171,10 +176,12 @@ namespace Limcap.LightValidator {
 				var success = test(value);
 				if (!success) v.AddErrorMessage(msg);
 				v.LastTestHasPassed = success;
+				v._skipChecks = !success;
 			}
 			catch (Exception ex) {
 				v.AddErrorMessage("[Exception] " + ex.Message);
 				v.LastTestHasPassed = false;
+				v._skipChecks = true;
 			}
 			return this;
 		}
@@ -189,10 +196,12 @@ namespace Limcap.LightValidator {
 				var success = test(value, reference);
 				if (!success) v.AddErrorMessage(msg);
 				v.LastTestHasPassed = success;
+				v._skipChecks = !success;
 			}
 			catch (Exception ex) {
 				v.AddErrorMessage("[Exception] " + ex.Message);
 				v.LastTestHasPassed = false;
+				v._skipChecks = true;
 			}
 			return this;
 		}
@@ -202,6 +211,7 @@ namespace Limcap.LightValidator {
 		public Param<V> Check(string invalidMsg, bool validCondition) {
 			if (!v.LastTestHasPassed) return this;
 			v.LastTestHasPassed = validCondition;
+			v._skipChecks = !validCondition;
 			if (!validCondition) v.AddErrorMessage(invalidMsg);
 			return this;
 		}
@@ -212,10 +222,8 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> ContinueIf(bool condition) {
-			if (!condition) v.LastTestHasPassed = false;
-			return this;
-		}
+		public Param<V> SkipNextChecks(bool condition) { v._skipChecks = !condition; return this; }
+		public Param<V> SkipNextChecks(Func<V,bool> condition) { v._skipChecks = !condition(Value); return this; }
 	}
 
 
