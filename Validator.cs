@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Ps = Limcap.LightValidator.Param<string>;
+using Ps = Limcap.LightValidator.Input<string>;
 
 namespace Limcap.LightValidator {
 
@@ -19,13 +19,13 @@ namespace Limcap.LightValidator {
 
 
 
-		// Current Param fields
-		internal string _paramName;
-		internal dynamic _paramValue;
-		internal dynamic _paramEqualizer;
+		// Current Input fields
+		internal string _inputName;
+		internal dynamic _inputValue;
+		internal dynamic _inputEqualizer;
 		internal bool _skipChecks;
-		internal bool _paramIsValid;
-		internal ValidationResult _paramResult;
+		internal bool _inputIsValid;
+		internal ValidationResult _inputResult;
 
 
 
@@ -39,45 +39,32 @@ namespace Limcap.LightValidator {
 		public void Reset(dynamic obj = null) {
 			Object = obj;
 			Results = null;
-			_paramName = null;
-			_paramValue = null;
-			_paramEqualizer = null;
-			_paramIsValid = false;
+			_inputName = null;
+			_inputValue = null;
+			_inputEqualizer = null;
+			_inputIsValid = false;
 			_skipChecks = false;
-			_paramResult = new ValidationResult();
+			_inputResult = new ValidationResult();
 			LastTestHasPassed = true;
 		}
 
 
 
-		public Param<dynamic> Param(string name) => ValidatorExtensions.Param<dynamic>(this, name, null);
-		public Param<string> Param(string name, string value) => ValidatorExtensions.Param(this, name, value);
-		public Param<IEnumerable<V>> Param<V>(string name, IEnumerable<V> value) => ValidatorExtensions.Param(this, name, value);
-
-
-
-		public Param<V> Param<V>(string name, V value) {
-			_paramName = name;
-			_paramValue = value;
-			_paramEqualizer = null;
-			_paramIsValid = true;
-			_skipChecks = false;
-			_paramResult = new ValidationResult();
-			LastTestHasPassed = true;
-			return new Param<V>(this);
-		}
+		public Input<dynamic> Input(string name) => ValidatorExtensions.Input<dynamic>(this, name, null);
+		public Input<string> Input(string name, string value) => ValidatorExtensions.Input(this, name, value);
+		public Input<IEnumerable<V>> Input<V>(string name, IEnumerable<V> value) => ValidatorExtensions.Input(this, name, value);
 
 
 
 		internal void AddErrorMessage(
 		string msg) {
-			if (_paramIsValid) {
-				_paramResult = new ValidationResult(_paramName);
+			if (_inputIsValid) {
+				_inputResult = new ValidationResult(_inputName);
 				InitializeResults();
-				Results.Add(_paramResult);
-				_paramIsValid = false;
+				Results.Add(_inputResult);
+				_inputIsValid = false;
 			}
-			_paramResult.Messages.Add(msg);
+			_inputResult.Messages.Add(msg);
 		}
 
 
@@ -100,19 +87,19 @@ namespace Limcap.LightValidator {
 
 	public static class ValidatorExtensions {
 		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
-		// do linter sobre o Param<IEnumerable<V>>, o que faz com que as chamadas do método Param com
+		// do linter sobre o Input<IEnumerable<V>>, o que faz com que as chamadas do método Input com
 		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
-		// para os métodos de extensão de Param<IEnumerable<V>> ficam marcados como erro no linter.
+		// para os métodos de extensão de Input<IEnumerable<V>> ficam marcados como erro no linter.
 		// Sendo extensão, ele cai na hierarquia de resolução resolvendo o problema.
-		public static Param<V> Param<V>(this Validator v, string name, V value) {
-			v._paramName = name;
-			v._paramValue = value;
-			v._paramIsValid = true;
+		public static Input<V> Input<V>(this Validator v, string name, V value) {
+			v._inputName = name;
+			v._inputValue = value;
+			v._inputIsValid = true;
 			v._skipChecks = false;
-			//v._paramResult = new ValidationResult();
-			v._paramEqualizer = true;
+			//v._inputResult = new ValidationResult();
+			v._inputEqualizer = true;
 			v.LastTestHasPassed = true;
-			return new Param<V>(v);
+			return new Input<V>(v);
 		}
 	}
 
@@ -121,9 +108,9 @@ namespace Limcap.LightValidator {
 
 
 
-	public struct Param<V> {
+	public struct Input<V> {
 
-		internal Param(Validator v) { this.v = v; }
+		internal Input(Validator v) { this.v = v; }
 
 
 
@@ -131,16 +118,16 @@ namespace Limcap.LightValidator {
 
 
 
-		public string Name { get => v._paramName; set => v._paramName = value; }
-		public V Value { get => v._paramValue; set => v._paramValue = value; }
-		public bool IsValid => v._paramIsValid;
-		public ValidationResult Result => v._paramResult;
+		public string Name { get => v._inputName; set => v._inputName = value; }
+		public V Value { get => v._inputValue; set => v._inputValue = value; }
+		public bool IsValid => v._inputIsValid;
+		public ValidationResult Result => v._inputResult;
 
 
 
-		public Param<V> UseEqualizer(ValueAdjuster<V> equalizer) { v._paramEqualizer = equalizer; return this; }
+		public Input<V> UseEqualizer(ValueAdjuster<V> equalizer) { v._inputEqualizer = equalizer; return this; }
 
-		public Param<V> UseEqualizer(StrOp eq) { v._paramEqualizer = eq; return this; }
+		public Input<V> UseEqualizer(StrOp eq) { v._inputEqualizer = eq; return this; }
 
 
 
@@ -159,34 +146,34 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<T> Cast<T>() => new Param<T>(v);
+		public Input<T> Cast<T>() => new Input<T>(v);
 
-		public Param<V> Alter(V value) { Value = value; return this; }
+		public Input<V> Alter(V value) { Value = value; return this; }
 
 
 
-		public Param<T> To<T>(Func<V, T> converter, string msg = null) {
-			var newParam = new Param<T>(v);
-			try { v._paramValue = converter(v._paramValue); }
+		public Input<T> To<T>(Func<V, T> converter, string msg = null) {
+			var newInput = new Input<T>(v);
+			try { v._inputValue = converter(v._inputValue); }
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._skipChecks = true;
 			}
-			return newParam;
+			return newInput;
 		}
 
 
 
-		public Param<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
-			var newParam = new Param<T>(v);
-			try { v._paramValue = converter(v._paramValue, supplement); }
+		public Input<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
+			var newInput = new Input<T>(v);
+			try { v._inputValue = converter(v._inputValue, supplement); }
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._skipChecks = true;
 			}
-			return newParam;
+			return newInput;
 		}
 
 
@@ -195,9 +182,9 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check(string failureMessage, ValidationTest<V> test) {
+		public Input<V> Check(string failureMessage, ValidationTest<V> test) {
 			try {
-				var value = Equalize(v._paramValue, v._paramEqualizer);
+				var value = Equalize(v._inputValue, v._inputEqualizer);
 				var success = test(value);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
@@ -213,11 +200,11 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
+		public Input<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
 			if (!v.LastTestHasPassed) return this;
 			try {
-				var value = Equalize(v._paramValue, v._paramEqualizer);
-				testArg = Equalize(testArg, v._paramEqualizer);
+				var value = Equalize(v._inputValue, v._inputEqualizer);
+				testArg = Equalize(testArg, v._inputEqualizer);
 				var success = test(value, testArg);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
@@ -233,7 +220,7 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check(string failureMessage, bool test) {
+		public Input<V> Check(string failureMessage, bool test) {
 			if (!v.LastTestHasPassed) return this;
 			v.LastTestHasPassed = test;
 			v._skipChecks = !test;
@@ -243,12 +230,12 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check(bool test) => Check("Valor inválido", test);
+		public Input<V> Check(bool test) => Check("Valor inválido", test);
 
 
 
-		public Param<V> Skip(bool condition) { v._skipChecks = !condition; return this; }
-		public Param<V> Skip(Func<V, bool> condition) { v._skipChecks = !condition(Value); return this; }
+		public Input<V> Skip(bool condition) { v._skipChecks = !condition; return this; }
+		public Input<V> Skip(Func<V, bool> condition) { v._skipChecks = !condition(Value); return this; }
 	}
 
 
@@ -258,11 +245,11 @@ namespace Limcap.LightValidator {
 
 	[DebuggerDisplay("{DD(), nq")]
 	public struct ValidationResult {
-		public ValidationResult(string paramName) { Param = paramName; Messages = new List<string>(); }
-		public readonly string Param;
+		public ValidationResult(string inputName) { Input = inputName; Messages = new List<string>(); }
+		public readonly string Input;
 		public readonly List<string> Messages;
 #if DEBUG
-		public string DD() => $"{nameof(Param)}=\"{Param}\", {nameof(Messages)}.Count={Messages.Count}";
+		public string DD() => $"{nameof(Input)}=\"{Input}\", {nameof(Messages)}.Count={Messages.Count}";
 #endif
 	}
 
@@ -305,107 +292,107 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class ParamExtensions_Checks {
+	public static class InputExtensions_Checks {
 		// generic
-		public static Param<V> IsNotNull<V>(this Param<V> p, string msg = null) {
+		public static Input<V> IsNotNull<V>(this Input<V> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
 		}
-		public static Param<V> IsIn<V>(this Param<V> p, IEnumerable<V> group, string msg = null) {
+		public static Input<V> IsIn<V>(this Input<V> p, IEnumerable<V> group, string msg = null) {
 			p.Check(msg ?? $"Não é um valor válido", Tests.In, group); return p;
 		}
-		public static Param<V> IsIn<V>(this Param<V> p, string msg, params V[] options) {
+		public static Input<V> IsIn<V>(this Input<V> p, string msg, params V[] options) {
 			p.Check(msg ?? $"Não é um opção válida", Tests.In, options); return p;
 		}
-		public static Param<V> IsIn<V>(this Param<V> p, params V[] options) {
+		public static Input<V> IsIn<V>(this Input<V> p, params V[] options) {
 			p.Check($"Não é um opção válida", Tests.In, options); return p;
 		}
 
 		// IEquatable
-		public static Param<V> IsEquals<V>(this Param<V> p, V value, string msg = null) where V : IEquatable<V> {
+		public static Input<V> IsEquals<V>(this Input<V> p, V value, string msg = null) where V : IEquatable<V> {
 			p.Check(msg ?? $"Deve ser {value}", Tests.Equals, value); return p;
 		}
 
 		// IComparable
-		public static Param<V> IsAtLeast<V>(this Param<V> p, V minValue, string msg = null) where V : IComparable<V> {
+		public static Input<V> IsAtLeast<V>(this Input<V> p, V minValue, string msg = null) where V : IComparable<V> {
 			p.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.IsAtLeast, minValue); return p;
 		}
-		public static Param<V> IsAtMost<V>(this Param<V> p, V maxValue, string msg = null) where V : IComparable<V> {
+		public static Input<V> IsAtMost<V>(this Input<V> p, V maxValue, string msg = null) where V : IComparable<V> {
 			p.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.IsAtMost, maxValue); return p;
 		}
-		public static Param<V> Is<V>(this Param<V> p, V value, string msg = null) where V : IComparable<V> {
+		public static Input<V> Is<V>(this Input<V> p, V value, string msg = null) where V : IComparable<V> {
 			p.Check(msg ?? $"Deve ser exatamente {value}", Tests.Exactly, value); return p;
 		}
 
 		// IEnumerable
-		public static Param<IEnumerable<V>> IsNotEmpty<V>(this Param<IEnumerable<V>> p, string msg = null) {
+		public static Input<IEnumerable<V>> IsNotEmpty<V>(this Input<IEnumerable<V>> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
 		}
-		public static Param<IEnumerable<V>> HasLength<V>(this Param<IEnumerable<V>> p, int length, string msg = null) {
+		public static Input<IEnumerable<V>> HasLength<V>(this Input<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return p;
 		}
-		public static Param<IEnumerable<V>> HasMinLength<V>(this Param<IEnumerable<V>> p, int length, string msg = null) {
+		public static Input<IEnumerable<V>> HasMinLength<V>(this Input<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.MinLength, length); return p;
 		}
-		public static Param<IEnumerable<V>> HasMaxLength<V>(this Param<IEnumerable<V>> p, int length, string msg = null) {
+		public static Input<IEnumerable<V>> HasMaxLength<V>(this Input<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.MaxLength, length); return p;
 		}
 
 		// int
-		public static Param<int> IsAtLeast(this Param<int> p, int number, string msg = null) {
+		public static Input<int> IsAtLeast(this Input<int> p, int number, string msg = null) {
 			p.Check(msg ?? $"Não pode ser menor que {number}", Tests.IsAtLeast, number); return p;
 		}
-		public static Param<int> IsAtMost(this Param<int> p, int number, string msg = null) {
+		public static Input<int> IsAtMost(this Input<int> p, int number, string msg = null) {
 			p.Check(msg ?? $"Não pode ser maior que {number}", Tests.IsAtMost, number); return p;
 		}
-		public static Param<int> Is(this Param<int> p, int number, string msg = null) {
+		public static Input<int> Is(this Input<int> p, int number, string msg = null) {
 			p.Check(msg ?? $"Deve ser exatamente {number}", Tests.Exactly, number); return p;
 		}
 
 		// string
-		public static Param<string> IsNotEmpty(this Param<string> p, string msg = null) {
+		public static Input<string> IsNotEmpty(this Input<string> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
 		}
-		public static Param<string> IsNotBlank(this Param<string> p, string msg = null) {
+		public static Input<string> IsNotBlank(this Input<string> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
 		}
-		public static Param<string> HasLength(this Param<string> p, int length, string msg = null) {
+		public static Input<string> HasLength(this Input<string> p, int length, string msg = null) {
 			p.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.Length, length); return p;
 		}
-		public static Param<string> HasMinLength(this Param<string> p, int length, string msg = null) {
+		public static Input<string> HasMinLength(this Input<string> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.MinLength, length); return p;
 		}
-		public static Param<string> HasMaxLength(this Param<string> p, int length, string msg = null) {
+		public static Input<string> HasMaxLength(this Input<string> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.MaxLength, length); return p;
 		}
-		public static Param<string> IsMatch(this Param<string> p, string pattern, string msg = null) {
+		public static Input<string> IsMatch(this Input<string> p, string pattern, string msg = null) {
 			p.Check(msg ?? "Não é um valor aceito", Tests.IsMatch, pattern); return p;
 		}
-		public static Param<string> IsEmail(this Param<string> p, string msg = null) {
+		public static Input<string> IsEmail(this Input<string> p, string msg = null) {
 			p.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return p;
 		}
-		public static Param<string> IsDigitsOnly(this Param<string> p, string msg = null) {
+		public static Input<string> IsDigitsOnly(this Input<string> p, string msg = null) {
 			p.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return p;
 		}
 	}
 
 
 
-	public static class ParamExtensions_Conversions {
-		public static Ps AsString<T>(this Param<T> p) => p.To(o => o.ToString());
-		public static Param<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
-		public static Param<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
-		public static Param<ushort> AsUshort(this Ps p) => _to(p, o => ushort.Parse(o));
-		public static Param<int> AsInt(this Ps p) => _to(p, o => int.Parse(o));
-		public static Param<uint> AsUint(this Ps p) => _to(p, o => uint.Parse(o));
-		public static Param<long> AsLong(this Ps p) => _to(p, o => long.Parse(o));
-		public static Param<ulong> AsUlong(this Ps p) => _to(p, o => ulong.Parse(o));
-		public static Param<float> AsFloat(this Ps p) => _to(p, o => float.Parse(o));
-		public static Param<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
-		public static Param<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
-		public static Param<DateTime> AsDateTime(this Ps p, string format) => p.To(_parseDT, format);
+	public static class InputExtensions_Conversions {
+		public static Ps AsString<T>(this Input<T> p) => p.To(o => o.ToString());
+		public static Input<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
+		public static Input<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
+		public static Input<ushort> AsUshort(this Ps p) => _to(p, o => ushort.Parse(o));
+		public static Input<int> AsInt(this Ps p) => _to(p, o => int.Parse(o));
+		public static Input<uint> AsUint(this Ps p) => _to(p, o => uint.Parse(o));
+		public static Input<long> AsLong(this Ps p) => _to(p, o => long.Parse(o));
+		public static Input<ulong> AsUlong(this Ps p) => _to(p, o => ulong.Parse(o));
+		public static Input<float> AsFloat(this Ps p) => _to(p, o => float.Parse(o));
+		public static Input<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
+		public static Input<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
+		public static Input<DateTime> AsDateTime(this Ps p, string format) => p.To(_parseDT, format);
 
-		//static Param<N> _asT<N>(Ps p, Func<string,N> converter) => p.To(converter);
-		static Param<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
+		//static Input<N> _asT<N>(Ps p, Func<string,N> converter) => p.To(converter);
+		static Input<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
 		static string _msgN<N>() => $"Não é um número válido do tipo '{typeof(N).Name}'";
 		static DateTime _parseDT(string v, string f) => DateTime.ParseExact(v, f, CultureInfo.CurrentCulture);
 	}
@@ -415,9 +402,9 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class ParamExtensions_General {
-		public static Param<T> GetValue<T>(this Param<T> p, out T variable) { variable = p.Value; return p; }
-		public static Param<IEnumerable<T>> SkipIfBlank<T>(this Param<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
+	public static class InputExtensions_General {
+		public static Input<T> GetValue<T>(this Input<T> p, out T variable) { variable = p.Value; return p; }
+		public static Input<IEnumerable<T>> SkipIfBlank<T>(this Input<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
 		public static Ps SkipIfBlank(this Ps p) { p.Skip(!p.Value.IsBlank()); return p; }
 	}
 
@@ -426,7 +413,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class ParamExtensions_StringOps {
+	public static class InputExtensions_StringOps {
 		public static Ps Trim(this Ps p, char c = (char)0) { p.Value = c == 0 ? p.Value.Trim() : p.Value.Trim(c); return p; }
 		public static Ps ToLower(this Ps p) { p.Value = p.Value?.ToLower(); return p; }
 		public static Ps ToUpper(this Ps p) { p.Value = p.Value?.ToUpper(); return p; }
