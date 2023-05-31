@@ -170,11 +170,11 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check(string msg, ValidationTest<V> test) {
+		public Param<V> Check(string failureMessage, ValidationTest<V> test) {
 			try {
 				var value = Equalize(v._paramValue, v._paramEqualizer);
 				var success = test(value);
-				if (!success) v.AddErrorMessage(msg);
+				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
 				v._skipChecks = !success;
 			}
@@ -188,13 +188,13 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check<R>(string msg, ValidationTest<V, R> test, R reference) {
+		public Param<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
 			if (!v.LastTestHasPassed) return this;
 			try {
 				var value = Equalize(v._paramValue, v._paramEqualizer);
-				reference = Equalize(reference, v._paramEqualizer);
-				var success = test(value, reference);
-				if (!success) v.AddErrorMessage(msg);
+				testArg = Equalize(testArg, v._paramEqualizer);
+				var success = test(value, testArg);
+				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
 				v._skipChecks = !success;
 			}
@@ -208,17 +208,17 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> Check(string invalidMsg, bool validCondition) {
+		public Param<V> Check(string failureMessage, bool test) {
 			if (!v.LastTestHasPassed) return this;
-			v.LastTestHasPassed = validCondition;
-			v._skipChecks = !validCondition;
-			if (!validCondition) v.AddErrorMessage(invalidMsg);
+			v.LastTestHasPassed = test;
+			v._skipChecks = !test;
+			if (!test) v.AddErrorMessage(failureMessage);
 			return this;
 		}
 
 
 
-		public Param<V> Check(bool validCondition) => Check("Valor inválido", validCondition);
+		public Param<V> Check(bool test) => Check("Valor inválido", test);
 
 
 
