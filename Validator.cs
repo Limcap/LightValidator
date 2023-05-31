@@ -50,7 +50,9 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<dynamic> Param(string name) => Param<dynamic>(name, null);
+		public Param<dynamic> Param(string name) => ValidatorExtensions.Param<dynamic>(this, name, null);
+		public Param<string> Param(string name, string value) => ValidatorExtensions.Param(this, name, value);
+		public Param<IEnumerable<V>> Param<V>(string name, IEnumerable<V> value) => ValidatorExtensions.Param(this, name, value);
 
 
 
@@ -88,6 +90,29 @@ namespace Limcap.LightValidator {
 
 		internal void RemoveEmptyResults() {
 			Results?.RemoveAll(x => x.Messages.Count == 0);
+		}
+	}
+
+
+
+
+
+
+	public static class ValidatorExtensions {
+		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
+		// do linter sobre o Param<IEnumerable<V>>, o que faz com que as chamadas do método Param com
+		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
+		// para os métodos de extensão de Param<IEnumerable<V>> ficam marcados como erro no linter.
+		// Sendo extensão, ele cai na hierarquia de resolução resolvendo o problema.
+		public static Param<V> Param<V>(this Validator v, string name, V value) {
+			v._paramName = name;
+			v._paramValue = value;
+			v._paramIsValid = true;
+			v._skipChecks = false;
+			//v._paramResult = new ValidationResult();
+			v._paramEqualizer = true;
+			v.LastTestHasPassed = true;
+			return new Param<V>(v);
 		}
 	}
 
