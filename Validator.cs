@@ -222,8 +222,8 @@ namespace Limcap.LightValidator {
 
 
 
-		public Param<V> SkipNextChecks(bool condition) { v._skipChecks = !condition; return this; }
-		public Param<V> SkipNextChecks(Func<V,bool> condition) { v._skipChecks = !condition(Value); return this; }
+		public Param<V> Skip(bool condition) { v._skipChecks = !condition; return this; }
+		public Param<V> Skip(Func<V, bool> condition) { v._skipChecks = !condition(Value); return this; }
 	}
 
 
@@ -391,7 +391,9 @@ namespace Limcap.LightValidator {
 
 
 	public static class ParamExtensions_General {
-		public static Param<T> LocalVar<T>(this Param<T> p, out T variable) { variable = p.Value; return p; }
+		public static Param<T> GetValue<T>(this Param<T> p, out T variable) { variable = p.Value; return p; }
+		public static Param<IEnumerable<T>> SkipIfBlank<T>(this Param<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
+		public static Ps SkipIfBlank(this Ps p) { p.Skip(!p.Value.IsBlank()); return p; }
 	}
 
 
