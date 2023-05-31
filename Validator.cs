@@ -423,6 +423,9 @@ namespace Limcap.LightValidator {
 		public static Ps Replace(this Ps p, string oldStr, string newStr) { p.Value = p.Value?.Replace(oldStr, newStr); return p; }
 		public static Ps Replace(this Ps p, char oldChar, char newChar) { p.Value = p.Value?.Replace(oldChar, newChar); return p; }
 		public static Ps Replace(this Ps p, params ValueTuple<char, char>[] pairs) { p.Value = p.Value.Replace(pairs); return p; }
+		public static Ps RemoveChars(this Ps p, string chars) { p.Value = p.Value.RemoveChars(chars); return p; }
+		public static Ps RemoveChars(this Ps p, IEnumerable<char> chars) { p.Value = p.Value.RemoveChars(chars); return p; }
+		public static Ps RemoveChars(this Ps p, params char[] chars) { p.Value = p.Value.RemoveChars(chars); return p; }
 	}
 
 
@@ -434,6 +437,11 @@ namespace Limcap.LightValidator {
 
 		public static string RemoveChars(this string str, string chars) {
 			return Regex.Replace(str, Regex.Escape(chars), "");
+		}
+
+
+		public static string RemoveChars(this string str, IEnumerable<char> chars) {
+			return RemoveChars(str, string.Join(string.Empty, chars));
 		}
 
 
