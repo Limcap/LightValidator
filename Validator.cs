@@ -246,6 +246,15 @@ namespace Limcap.LightValidator {
 
 
 
+	public delegate bool ValidationTest<V>(V value);
+	public delegate bool ValidationTest<V, R>(V value, R allowed = default);
+	public delegate void ValidationScript(Validator v);
+
+
+
+
+
+
 	internal static class Tests {
 		public static bool NotNull<V>(V x) => x != null;
 		public static bool NotEmpty<V>(IEnumerable<V> x) => x != null && x.Count() > 0;
@@ -278,6 +287,12 @@ namespace Limcap.LightValidator {
 		}
 		public static Param<V> IsIn<V>(this Param<V> p, IEnumerable<V> group, string msg = null) {
 			p.Check(msg ?? $"Não é um valor válido", Tests.In, group); return p;
+		}
+		public static Param<V> IsIn<V>(this Param<V> p, string msg, params V[] options) {
+			p.Check(msg ?? $"Não é um opção válida", Tests.In, options); return p;
+		}
+		public static Param<V> IsIn<V>(this Param<V> p, params V[] options) {
+			p.Check($"Não é um opção válida", Tests.In, options); return p;
 		}
 
 		// IEquatable
@@ -403,32 +418,19 @@ namespace Limcap.LightValidator {
 
 	public static class StringExtensions {
 
-		public static string Apply(this StrOp op, string x) {
-			if (op.HasFlag(StrOp.Trim)) { x = x.Trim(); }
-			if (op.HasFlag(StrOp.ToLower)) { x = x.ToUpper(); }
-			if (op.HasFlag(StrOp.ToUpper)) { x = x.ToUpper(); }
-			if (op.HasFlag(StrOp.RemoveDiacritics)) { x = x.RemoveDiacritics(); }
-			if (op.HasFlag(StrOp.ToASCII)) { x = x.ToASCII(); }
-			return x;
-		}
-
-
-
-		public static string StripChars(this string str, string chars) {
+		public static string RemoveChars(this string str, string chars) {
 			return Regex.Replace(str, Regex.Escape(chars), "");
 		}
 
-		public static string StripChars(this string str, params char[] chars) {
-			return StripChars(str, string.Join(string.Empty, chars));
-		}
 
+		public static string RemoveChars(this string str, params char[] chars) {
+			return RemoveChars(str, string.Join(string.Empty, chars));
+		}
 
 
 		public static string Crop(this string str, int startIndex, int length) {
 			return startIndex + length > str.Length - 1 ? str.Substring(startIndex) : str.Substring(startIndex, length);
 		}
-
-
 
 
 		public static string Replace(this string str, params ValueTuple<char, char>[] pairs) {
@@ -445,18 +447,6 @@ namespace Limcap.LightValidator {
 		}
 
 
-
-		internal static IEnumerable<V> Apply<V>(this ValueAdjuster<V> f, IEnumerable<V> collection) => collection.Select(y => f(y));
-		public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
-		public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
-		public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
-		public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
-		public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
-		public static string ToASCII(this string text, string replaceInvalidWith = "~") => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]", replaceInvalidWith);
-		public static string RemoveNonASCII(this string text) => Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", string.Empty);
-
-
-
 		public static string RemoveDiacritics(this string text) {
 			var normalizedString = text.Normalize(NormalizationForm.FormD);
 			var sb = new StringBuilder(normalizedString.Length);
@@ -467,6 +457,26 @@ namespace Limcap.LightValidator {
 			}
 			return sb.ToString().Normalize(NormalizationForm.FormC);
 		}
+
+
+		public static string ToASCII(this string text, string replaceInvalidWith = "~") {
+			return Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]", replaceInvalidWith);
+		}
+
+
+		public static string RemoveNonASCII(this string text) {
+			return Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", string.Empty);
+		}
+
+
+		public static bool IsEmpty(this string str) { return string.IsNullOrEmpty(str); }
+		public static bool IsBlank(this string str) { return string.IsNullOrWhiteSpace(str); }
+
+		public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
+		public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
+		public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
+		public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
+		public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
 	}
 
 
@@ -480,10 +490,27 @@ namespace Limcap.LightValidator {
 		Normalize = 11, NormalizeASCII = 27
 	}
 
+	public static class StrOpExtensions {
+		public static string Apply(this StrOp op, string x) {
+			if (op.HasFlag(StrOp.Trim)) { x = x.Trim(); }
+			if (op.HasFlag(StrOp.ToLower)) { x = x.ToUpper(); }
+			if (op.HasFlag(StrOp.ToUpper)) { x = x.ToUpper(); }
+			if (op.HasFlag(StrOp.RemoveDiacritics)) { x = x.RemoveDiacritics(); }
+			if (op.HasFlag(StrOp.ToASCII)) { x = x.ToASCII(); }
+			return x;
+		}
+	}
+
+
+
+
 
 
 	public delegate T ValueAdjuster<T>(T value);
-	public delegate bool ValidationTest<V>(V value);
-	public delegate bool ValidationTest<V, R>(V value, R allowed = default);
-	public delegate void ValidationScript(Validator v);
+
+	public static class ValueAdjusterExtensions {
+		internal static IEnumerable<V> Apply<V>(this ValueAdjuster<V> f, IEnumerable<V> collection) {
+			return collection.Select(y => f(y));
+		}
+	}
 }
