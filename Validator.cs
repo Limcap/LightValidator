@@ -183,9 +183,10 @@ namespace Limcap.LightValidator {
 
 
 		public Input<V> Check(string failureMessage, ValidationTest<V> test) {
+			if (v._skipChecks || !v.LastTestHasPassed) return this;
 			try {
-				var value = Equalize(v._inputValue, v._inputEqualizer);
-				var success = test(value);
+				//var value = Equalize(v._inputValue, v._inputEqualizer);
+				var success = test(v._inputValue);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
 				v._skipChecks = !success;
@@ -201,11 +202,11 @@ namespace Limcap.LightValidator {
 
 
 		public Input<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
-			if (!v.LastTestHasPassed) return this;
+			if (v._skipChecks || !v.LastTestHasPassed) return this;
 			try {
-				var value = Equalize(v._inputValue, v._inputEqualizer);
-				testArg = Equalize(testArg, v._inputEqualizer);
-				var success = test(value, testArg);
+				//var value = Equalize(v._inputValue, v._inputEqualizer);
+				//testArg = Equalize(testArg, v._inputEqualizer);
+				var success = test(v._inputValue, testArg);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
 				v._skipChecks = !success;
@@ -243,14 +244,18 @@ namespace Limcap.LightValidator {
 
 
 
-	[DebuggerDisplay("{DD(), nq")]
+	[DebuggerDisplay("{DD(), nq}")]
 	public struct ValidationResult {
 		public ValidationResult(string inputName) { Input = inputName; Messages = new List<string>(); }
 		public readonly string Input;
 		public readonly List<string> Messages;
-#if DEBUG
-		public string DD() => $"{nameof(Input)}=\"{Input}\", {nameof(Messages)}.Count={Messages.Count}";
-#endif
+		#if DEBUG
+		private string DD() {
+			var str1 = nameof(Input) + Input is null ? "=null" : $"\"{Input}\"";
+			var str2 = nameof(Messages) + Messages is null ? $"=null" : $".Count={Messages.Count}";
+			return $"{str1}, {str2}";
+		}
+		#endif
 	}
 
 
@@ -297,12 +302,12 @@ namespace Limcap.LightValidator {
 		public static Input<V> IsNotNull<V>(this Input<V> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
 		}
-		public static Input<V> IsIn<V>(this Input<V> p, IEnumerable<V> group, string msg = null) {
-			p.Check(msg ?? $"Não é um valor válido", Tests.In, group); return p;
+		public static Input<V> IsIn<V>(this Input<V> p, IEnumerable<V> options, string msg = null) {
+			p.Check(msg ?? $"Não é um valor válido", Tests.In, options); return p;
 		}
-		public static Input<V> IsIn<V>(this Input<V> p, string msg, params V[] options) {
-			p.Check(msg ?? $"Não é um opção válida", Tests.In, options); return p;
-		}
+		//public static Input<V> IsIn<V>(this Input<V> p, string msg, params V[] options) {
+		//	p.Check(msg ?? $"Não é um opção válida", Tests.In, options); return p;
+		//}
 		public static Input<V> IsIn<V>(this Input<V> p, params V[] options) {
 			p.Check($"Não é um opção válida", Tests.In, options); return p;
 		}
@@ -494,11 +499,11 @@ namespace Limcap.LightValidator {
 		public static bool IsEmpty(this string str) { return string.IsNullOrEmpty(str); }
 		public static bool IsBlank(this string str) { return string.IsNullOrWhiteSpace(str); }
 
-		public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
-		public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
-		public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
-		public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
-		public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
+		//public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
+		//public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
+		//public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
+		//public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
+		//public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
 	}
 
 
