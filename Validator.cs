@@ -13,11 +13,6 @@ namespace Limcap.LightValidator {
 	///	Provides validation for any object and its members.
 	/// </summary>
 	public class Validator {
-		public Validator(dynamic obj = null) {
-			Object = obj;
-		}
-
-
 
 		// Current Input fields
 		internal string _inputName;
@@ -29,15 +24,13 @@ namespace Limcap.LightValidator {
 
 
 
-		public dynamic Object { get; private set; }
 		public List<ValidationResult> Results { get; private set; }
 		public string LastError => Results.LastOrDefault().Messages?.LastOrDefault();
 		public bool LastTestHasPassed { get; internal set; }
 
 
 
-		public void Reset(dynamic obj = null) {
-			Object = obj;
+		public void Reset() {
 			Results = null;
 			_inputName = null;
 			_inputValue = null;
