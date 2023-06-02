@@ -1,4 +1,8 @@
-﻿### Ver 0.3.1
+﻿### Ver 0.3.3
+
+### Ver 0.3.2
+
+### Ver 0.3.1
 - Classes were renamed for the better
 - Field method is now Param
 - Can now test a Param without supplying its value. However there is no pre-defined test for this mode, you'll have to dupply yout own test
