@@ -31,7 +31,7 @@ namespace Limcap.LightValidator {
 
 
 		public void Reset() {
-			Results = null;
+			Results = new List<ValidationResult>();
 			_subjectName = null;
 			_subjectValue = null;
 			_subjectEqualizer = null;
@@ -49,27 +49,25 @@ namespace Limcap.LightValidator {
 
 
 
-		internal void AddErrorMessage(
-		string msg) {
+		internal void AddErrorMessage(string msg) {
 			if (_subjectIsValid) {
-				_subjectResult = new ValidationResult(_subjectName);
-				InitializeResults();
-				Results.Add(_subjectResult);
-				_subjectIsValid = false;
+				Results = Results ?? new List<ValidationResult>();
+				LoadResultInstance();
 			}
 			_subjectResult.Messages.Add(msg);
 		}
 
 
 
-		internal void InitializeResults() {
-			Results = Results ?? new List<ValidationResult>();
-		}
-
-
-
-		internal void RemoveEmptyResults() {
-			Results?.RemoveAll(x => x.Messages.Count == 0);
+		private void LoadResultInstance() {
+			for (int i = 0; i < Results.Count; i++) {
+				if (Results[i].Subject == _subjectName) {
+					_subjectResult = Results[i];
+					return;
+				}
+			}
+			_subjectResult = new ValidationResult(_subjectName);
+			Results.Add(_subjectResult);
 		}
 	}
 
@@ -89,7 +87,7 @@ namespace Limcap.LightValidator {
 			v._subjectValue = value;
 			v._subjectIsValid = true;
 			v._skipChecks = false;
-			//v._subjectResult = new ValidationResult();
+			v._subjectResult = default;
 			v._subjectEqualizer = true;
 			v.LastTestHasPassed = true;
 			return new Subject<V>(v);
@@ -111,10 +109,11 @@ namespace Limcap.LightValidator {
 
 
 
-		public string Name { get => v._subjectName; set => v._subjectName = value; }
-		public V Value { get => v._subjectValue; set => v._subjectValue = value; }
+		public string Name { get => v._subjectName; private set => v._subjectName = value; }
+		public V Value { get => IsRightValueType ? v._subjectValue : default(V); internal set => v._subjectValue = value; }
 		public bool IsValid => v._subjectIsValid;
 		public ValidationResult Result => v._subjectResult;
+		private bool IsRightValueType => v._subjectValue == null && default(V) == null || v._subjectValue.GetType() == typeof(V);
 
 
 
@@ -151,6 +150,7 @@ namespace Limcap.LightValidator {
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._subjectValue = default(T);
 				v._skipChecks = true;
 			}
 			return newSubject;
@@ -164,6 +164,7 @@ namespace Limcap.LightValidator {
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._subjectValue = default(S);
 				v._skipChecks = true;
 			}
 			return newSubject;
@@ -171,7 +172,7 @@ namespace Limcap.LightValidator {
 
 
 
-		static string DefaultConvertMsg<T>(string info) => $"Não é convertível para o formato esperado ({typeof(T).Name}). [{info}]";
+		static string DefaultConvertMsg<T>(string info) => $"Não é um valor válido para o tipo '{typeof(T).Name}' - [{info}]";
 
 
 
@@ -244,8 +245,8 @@ namespace Limcap.LightValidator {
 		public readonly List<string> Messages;
 		#if DEBUG
 		private string DD() {
-			var str1 = nameof(Subject) + Subject is null ? "=null" : $"\"{Subject}\"";
-			var str2 = nameof(Messages) + Messages is null ? $"=null" : $".Count={Messages.Count}";
+			var str1 = nameof(Subject) + (Subject is null ? "=null" : $"=\"{Subject}\"");
+			var str2 = nameof(Messages) + (Messages is null ? $"=null" : $".Count={Messages.Count}");
 			return $"{str1}, {str2}";
 		}
 		#endif
@@ -298,9 +299,6 @@ namespace Limcap.LightValidator {
 		public static Subject<V> IsIn<V>(this Subject<V> p, IEnumerable<V> options, string msg = null) {
 			p.Check(msg ?? $"Não é um valor válido", Tests.In, options); return p;
 		}
-		//public static Subject<V> IsIn<V>(this Subject<V> p, string msg, params V[] options) {
-		//	p.Check(msg ?? $"Não é um opção válida", Tests.In, options); return p;
-		//}
 		public static Subject<V> IsIn<V>(this Subject<V> p, params V[] options) {
 			p.Check($"Não é um opção válida", Tests.In, options); return p;
 		}
