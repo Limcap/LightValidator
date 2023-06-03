@@ -386,6 +386,8 @@ namespace Limcap.LightValidator {
 		public static Subject<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
 		public static Subject<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
 		public static Subject<DateTime> AsDateTime(this Ps p, string format) => p.To(_parseDT, format);
+		public static Subject<DateTime> AsDate(this Ps p) => p.To(o => o.ToDate(), "Não é uma data válida");
+		public static Subject<DateTime?> AsNullableDate(this Ps p) => p.To(o => o.ToNullableDate(), "Não é uma data válida");
 
 		//static Subject<N> _asT<N>(Ps p, Func<string,N> converter) => p.To(converter);
 		static Subject<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
@@ -489,6 +491,46 @@ namespace Limcap.LightValidator {
 
 		public static bool IsEmpty(this string str) { return string.IsNullOrEmpty(str); }
 		public static bool IsBlank(this string str) { return string.IsNullOrWhiteSpace(str); }
+
+		public static DateTime? ToNullableDate(this string str) { try { return str.ToDate(); } catch { return null; } }
+		public static DateTime ToDate(this string str) {
+			int start =-1, len = 0;
+			int p1 = 0, p2 = 0, p3 = 0;
+			char sep = '\0';
+			for (int i=0;i<str.Length+1;i++){
+				char c = i == str.Length ? '\0' : str[i];
+				if (start == -1) {
+					if (!char.IsDigit(c)) throw new ArgumentException();
+					start = i; len++;
+				}
+				else if (char.IsDigit(c)) {
+					if (len == 4) throw new ArgumentException();
+					len++;
+				}
+				else {
+					if (sep == '\0') sep = c;
+					else if (c != sep && p3 != 0) throw new ArgumentException();
+					int px = int.Parse(str.Substring(start,len));
+					if (p1 == 0) p1 = px;
+					else if( p2 == 0) p2 = px;
+					else if (p3 == 0) {
+						if (c == sep) throw new ArgumentException();
+						p3 = px;
+						break;
+					}
+					start = -1; len = 0;
+				}
+			}
+			int year, month, day, m1, m2;
+			if (p1 > 31) { year = p1; month = p2; day = p3; }
+			else {
+				year = p3;
+				if( p2 < 13) { month = p2; day=p1; }
+				else { month = p1; day = p2; }
+			}
+			if (month > 12 || day > 31) throw new ArgumentException();
+			return new DateTime(year, month, day);
+		}
 
 		//public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
 		//public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
