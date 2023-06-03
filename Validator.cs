@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Ps = Limcap.LightValidator.Subject<string>;
@@ -571,6 +572,29 @@ namespace Limcap.LightValidator {
 	public static class ValueAdjusterExtensions {
 		internal static IEnumerable<V> Apply<V>(this ValueAdjuster<V> f, IEnumerable<V> collection) {
 			return collection.Select(y => f(y));
+		}
+	}
+
+
+
+
+
+
+	public static class FieldInfoExtensions {
+		public static bool IsConst(this FieldInfo fi) => fi.IsLiteral && !fi.IsInitOnly;
+		public static bool IsReadOnly(this FieldInfo fi) => fi.IsLiteral && fi.IsInitOnly;
+	}
+
+
+
+
+
+
+	public static class TypeExtensions {
+		public static T[] GetConstants<T>(this Type type) {
+			var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
+			return fields.Where(fi => fi.IsConst() && fi.FieldType == typeof(T))
+			.Select(fi => (T)fi.GetValue(null)).ToArray();
 		}
 	}
 }
