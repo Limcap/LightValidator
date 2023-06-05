@@ -42,9 +42,9 @@ namespace Limcap.LightValidator {
 
 
 
-		public Subject<dynamic> Subject(string name) => ValidatorExtensions.Subject<dynamic>(this, name, null);
-		public Subject<string> Subject(string name, string value) => ValidatorExtensions.Subject(this, name, value);
-		public Subject<IEnumerable<V>> Subject<V>(string name, IEnumerable<V> value) => ValidatorExtensions.Subject(this, name, value);
+		public Subject<dynamic> Subject(string name) => Ext_Validator.Subject<dynamic>(this, name, null);
+		public Subject<string> Subject(string name, string value) => Ext_Validator.Subject(this, name, value);
+		public Subject<IEnumerable<V>> Subject<V>(string name, IEnumerable<V> value) => Ext_Validator.Subject(this, name, value);
 
 
 
@@ -75,7 +75,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class ValidatorExtensions {
+	public static class Ext_Validator {
 		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
 		// do linter sobre o Subject<IEnumerable<V>>, o que faz com que as chamadas do método Subject com
 		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
@@ -265,7 +265,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class SubjectExtensions_Checks {
+	public static class Ext_Subject_Checks {
 		// generic
 		public static Subject<V> IsNotNull<V>(this Subject<V> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
@@ -347,7 +347,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class SubjectExtensions_Conversions {
+	public static class Ext_Subject_Numeric {
 		public static Ps AsString<T>(this Subject<T> p) => p.To(o => o.ToString());
 		public static Subject<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
 		public static Subject<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
@@ -374,7 +374,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class SubjectExtensions_General {
+	public static class Ext_Subject {
 		public static Subject<T> GetValue<T>(this Subject<T> p, out T variable) { variable = p.Value; return p; }
 		public static Subject<IEnumerable<T>> SkipIfBlank<T>(this Subject<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
 		public static Ps SkipIfBlank(this Ps p) { p.Skip(!p.Value.IsBlank()); return p; }
@@ -385,7 +385,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class SubjectExtensions_StringOps {
+	public static class Ext_Subject_String {
 		public static Ps Trim(this Ps p, char c = (char)0) { p.Value = c == 0 ? p.Value.Trim() : p.Value.Trim(c); return p; }
 		public static Ps ToLower(this Ps p) { p.Value = p.Value?.ToLower(); return p; }
 		public static Ps ToUpper(this Ps p) { p.Value = p.Value?.ToUpper(); return p; }
@@ -405,7 +405,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class StringExtensions {
+	public static class Ext_String {
 
 		public static string RemoveChars(this string str, string chars) {
 			return Regex.Replace(str, Regex.Escape(chars), "");
@@ -520,7 +520,7 @@ namespace Limcap.LightValidator {
 
 	public delegate T ValueAdjuster<T>(T value);
 
-	public static class ValueAdjusterExtensions {
+	public static class Ext_ValueAdjuster {
 		internal static IEnumerable<V> Apply<V>(this ValueAdjuster<V> f, IEnumerable<V> collection) {
 			return collection.Select(y => f(y));
 		}
@@ -531,7 +531,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class FieldInfoExtensions {
+	public static class Ext_FieldInfo {
 		public static bool IsConst(this FieldInfo fi) => fi.IsLiteral && !fi.IsInitOnly;
 		public static bool IsReadOnly(this FieldInfo fi) => fi.IsLiteral && fi.IsInitOnly;
 	}
@@ -541,7 +541,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class TypeExtensions {
+	public static class Ext_Type {
 		public static T[] GetConstants<T>(this Type type) {
 			var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
 			return fields.Where(fi => fi.IsConst() && fi.FieldType == typeof(T))
