@@ -18,7 +18,6 @@ namespace Limcap.LightValidator {
 		// Current Subject fields
 		internal string _subjectName;
 		internal dynamic _subjectValue;
-		internal dynamic _subjectEqualizer;
 		internal bool _skipChecks;
 		internal bool _subjectIsValid;
 		internal Log _subjectLog;
@@ -35,7 +34,6 @@ namespace Limcap.LightValidator {
 			Logs = new List<Log>();
 			_subjectName = null;
 			_subjectValue = null;
-			_subjectEqualizer = null;
 			_subjectIsValid = false;
 			_skipChecks = false;
 			_subjectLog = new Log();
@@ -89,7 +87,6 @@ namespace Limcap.LightValidator {
 			v._subjectIsValid = true;
 			v._skipChecks = false;
 			v._subjectLog = default;
-			v._subjectEqualizer = true;
 			v.LastTestHasPassed = true;
 			return new Subject<V>(v);
 		}
@@ -115,27 +112,6 @@ namespace Limcap.LightValidator {
 		public bool IsValid => v._subjectIsValid;
 		public Log Log => v._subjectLog;
 		private bool IsRightValueType => v._subjectValue == null && default(V) == null || v._subjectValue.GetType() == typeof(V);
-
-
-
-		public Subject<V> UseEqualizer(ValueAdjuster<V> equalizer) { v._subjectEqualizer = equalizer; return this; }
-
-		public Subject<V> UseEqualizer(StrOp eq) { v._subjectEqualizer = eq; return this; }
-
-
-
-		private dynamic Equalize(dynamic dynVal, dynamic dynEq) {
-			if (dynVal == null || dynEq == null) return null;
-			if (dynVal is string str && dynEq is StrOp op)
-				dynVal = op.Apply(str);
-			else if (dynVal is V val && dynEq is ValueAdjuster<V> adj)
-				dynVal = adj(val);
-			else if (dynVal is IEnumerable<string> strs && dynEq is StrOp op2)
-				dynVal = strs.Select(o => op2.Apply(o));
-			else if (dynVal is IEnumerable<V> vals && dynEq is ValueAdjuster<V> adj2)
-				dynVal = vals.Select(o => adj2(o));
-			return dynVal;
-		}
 
 
 
@@ -180,7 +156,6 @@ namespace Limcap.LightValidator {
 		public Subject<V> Check(string failureMessage, ValidationTest<V> test) {
 			if (v._skipChecks || !v.LastTestHasPassed) return this;
 			try {
-				//var value = Equalize(v._subjectValue, v._subjectEqualizer);
 				var success = test(v._subjectValue);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
@@ -199,8 +174,6 @@ namespace Limcap.LightValidator {
 		public Subject<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
 			if (v._skipChecks || !v.LastTestHasPassed) return this;
 			try {
-				//var value = Equalize(v._subjectValue, v._subjectEqualizer);
-				//testArg = Equalize(testArg, v._subjectEqualizer);
 				var success = test(v._subjectValue, testArg);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
