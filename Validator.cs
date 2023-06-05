@@ -112,10 +112,14 @@ namespace Limcap.LightValidator {
 
 
 
-		public Subject<T> Cast<T>() => new Subject<T>(v);
-
 		public Subject<V> SetValue(V value) { Value = value; return this; }
 
+
+		public Subject<T> Cast<T>() {
+			try {	v._subjectValue = (T)v._subjectValue;	}
+			catch { v._subjectValue = default(T); }
+			return new Subject<T>(v);
+		}
 
 
 		public Subject<T> To<T>(Func<V, T> converter, string msg = null) {
