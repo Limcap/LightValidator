@@ -230,24 +230,21 @@ namespace Limcap.LightValidator {
 
 
 	internal static class Tests {
-		public static bool Null<V>(V x) => x == null;
-		public static bool NotNull<V>(V x) => x != null;
-		public static bool Empty<V>(IEnumerable<V> x) => x == null || x.Count() > 0;
-		public static bool NotEmpty<V>(IEnumerable<V> x) => x != null && x.Count() > 0;
-		public static bool Blank(string x) => string.IsNullOrWhiteSpace(x);
-		public static bool NotBlank(string x) => !string.IsNullOrWhiteSpace(x);
+		public static bool IsNull<V>(V x) => x == null;
+		public static bool IsNotNull<V>(V x) => x != null;
+		public static bool IsEmpty<V>(IEnumerable<V> x) => x == null || x.Count() > 0;
+		public static bool IsNotEmpty<V>(IEnumerable<V> x) => x != null && x.Count() > 0;
+		public static bool IsBlank(string x) => string.IsNullOrWhiteSpace(x);
+		public static bool IsNotBlank(string x) => !string.IsNullOrWhiteSpace(x);
 		public static bool IsMatch(string x, string a) => x != null && Regex.IsMatch(x, a);
-		public static bool In<V>(V x, IEnumerable<V> a) => x != null && a.Contains(x);
-		public static bool Equals<V>(V x, V a) where V : IEquatable<V> => x != null && x.Equals(a);
-		public static bool MaxLength<V>(IEnumerable<V> x, int t) => x == null || x.Count() <= t;
-		public static bool MinLength<V>(IEnumerable<V> x, int t) => x != null && x.Count() >= t;
-		public static bool Length<V>(IEnumerable<V> x, int t) => x != null && x.Count() == t;
+		public static bool IsIn<V>(V x, IEnumerable<V> a) => x != null && a.Contains(x);
+		public static bool IsEqual<V>(V x, V a) where V : IEquatable<V> => x != null && x.Equals(a);
+		public static bool IsMinLength<V>(IEnumerable<V> x, int t) => x != null && x.Count() >= t;
+		public static bool IsMaxLength<V>(IEnumerable<V> x, int t) => x == null || x.Count() <= t;
+		public static bool IsLength<V>(IEnumerable<V> x, int t) => x != null && x.Count() == t;
 		public static bool IsAtLeast<V>(V x, V t) where V : IComparable<V> => x != null && x.CompareTo(t) >= 0;
 		public static bool IsAtMost<V>(V x, V t) where V : IComparable<V> => x == null || x.CompareTo(t) <= 0;
-		public static bool Exactly<V>(V x, V t) where V : IComparable<V> => x != null && x.CompareTo(t) == 0;
-		public static bool Min<V>(IEnumerable<V> x, int t) => x != null && x.Count() >= t;
-		public static bool Max<V>(IEnumerable<V> x, int t) => x == null || x.Count() <= t;
-		public static bool Exactly<V>(IEnumerable<V> x, int t) => x != null && x.Count() == t;
+		public static bool IsExactly<V>(V x, V t) where V : IComparable<V> => x != null && x.CompareTo(t) == 0;
 		public static bool IsEmail(string x) => Regex.IsMatch(x, @"^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$");
 		public static bool IsDigitsOnly(string x) => x != null && x.All(y => char.IsDigit(y));
 	}
@@ -260,21 +257,21 @@ namespace Limcap.LightValidator {
 	public static class Ext_Subject_Checks {
 		// generic
 		public static Subject<V> IsNull<V>(this Subject<V> p, string msg = null) {
-			p.Check(msg ?? $"Deve ser nulo", Tests.Null); return p;
+			p.Check(msg ?? $"Deve ser nulo", Tests.IsNull); return p;
 		}
 		public static Subject<V> IsNotNull<V>(this Subject<V> p, string msg = null) {
-			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
+			p.Check(msg ?? $"Não pode ser nulo", Tests.IsNotNull); return p;
 		}
 		public static Subject<V> IsIn<V>(this Subject<V> p, IEnumerable<V> options, string msg = null) {
-			p.Check(msg ?? $"Não é um valor válido", Tests.In, options); return p;
+			p.Check(msg ?? $"Não é um valor válido", Tests.IsIn, options); return p;
 		}
 		public static Subject<V> IsIn<V>(this Subject<V> p, params V[] options) {
-			p.Check($"Não é um opção válida", Tests.In, options); return p;
+			p.Check($"Não é um opção válida", Tests.IsIn, options); return p;
 		}
 
 		// IEquatable
 		public static Subject<V> IsEquals<V>(this Subject<V> p, V value, string msg = null) where V : IEquatable<V> {
-			p.Check(msg ?? $"Deve ser {value}", Tests.Equals, value); return p;
+			p.Check(msg ?? $"Deve ser {value}", Tests.IsEqual, value); return p;
 		}
 
 		// IComparable
@@ -285,24 +282,24 @@ namespace Limcap.LightValidator {
 			p.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.IsAtMost, maxValue); return p;
 		}
 		public static Subject<V> Is<V>(this Subject<V> p, V value, string msg = null) where V : IComparable<V> {
-			p.Check(msg ?? $"Deve ser exatamente {value}", Tests.Exactly, value); return p;
+			p.Check(msg ?? $"Deve ser exatamente {value}", Tests.IsExactly, value); return p;
 		}
 
 		// IEnumerable
 		public static Subject<IEnumerable<V>> IsEmpty<V>(this Subject<IEnumerable<V>> p, string msg = null) {
-			p.Check(msg ?? $"Deve ficar vazio", Tests.Empty); return p;
+			p.Check(msg ?? $"Deve ficar vazio", Tests.IsEmpty); return p;
 		}
 		public static Subject<IEnumerable<V>> IsNotEmpty<V>(this Subject<IEnumerable<V>> p, string msg = null) {
-			p.Check(msg ?? $"Não pode ficar vazio", Tests.NotEmpty); return p;
+			p.Check(msg ?? $"Não pode ficar vazio", Tests.IsNotEmpty); return p;
 		}
 		public static Subject<IEnumerable<V>> HasLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
-			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return p;
+			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.IsLength, length); return p;
 		}
 		public static Subject<IEnumerable<V>> HasMinLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.MinLength, length); return p;
+			p.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.IsMinLength, length); return p;
 		}
 		public static Subject<IEnumerable<V>> HasMaxLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.MaxLength, length); return p;
+			p.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.IsMaxLength, length); return p;
 		}
 
 		// int
@@ -313,30 +310,30 @@ namespace Limcap.LightValidator {
 			p.Check(msg ?? $"Não pode ser maior que {number}", Tests.IsAtMost, number); return p;
 		}
 		public static Subject<int> Is(this Subject<int> p, int number, string msg = null) {
-			p.Check(msg ?? $"Deve ser exatamente {number}", Tests.Exactly, number); return p;
+			p.Check(msg ?? $"Deve ser exatamente {number}", Tests.IsExactly, number); return p;
 		}
 
 		// string
 		public static Subject<string> IsEmpty(this Subject<string> p, string msg = null) {
-			p.Check(msg ?? $"Não deve ser preenchido", Tests.Empty); return p;
+			p.Check(msg ?? $"Não deve ser preenchido", Tests.IsEmpty); return p;
 		}
 		public static Subject<string> IsNotEmpty(this Subject<string> p, string msg = null) {
-			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
+			p.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return p;
 		}
 		public static Subject<string> IsBlank(this Subject<string> p, string msg = null) {
-			p.Check(msg ?? $"Deve ficar em branco", Tests.Blank); return p;
+			p.Check(msg ?? $"Deve ficar em branco", Tests.IsBlank); return p;
 		}
 		public static Subject<string> IsNotBlank(this Subject<string> p, string msg = null) {
-			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
+			p.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return p;
 		}
 		public static Subject<string> HasLength(this Subject<string> p, int length, string msg = null) {
-			p.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.Length, length); return p;
+			p.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.IsLength, length); return p;
 		}
 		public static Subject<string> HasMinLength(this Subject<string> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.MinLength, length); return p;
+			p.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.IsMinLength, length); return p;
 		}
 		public static Subject<string> HasMaxLength(this Subject<string> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.MaxLength, length); return p;
+			p.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.IsMaxLength, length); return p;
 		}
 		public static Subject<string> IsMatch(this Subject<string> p, string pattern, string msg = null) {
 			p.Check(msg ?? "Não é um valor aceito", Tests.IsMatch, pattern); return p;
