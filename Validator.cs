@@ -21,24 +21,24 @@ namespace Limcap.LightValidator {
 		internal dynamic _subjectEqualizer;
 		internal bool _skipChecks;
 		internal bool _subjectIsValid;
-		internal ValidationResult _subjectResult;
+		internal Log _subjectLog;
 
 
 
-		public List<ValidationResult> Results { get; private set; }
-		public string LastError => Results.LastOrDefault().Messages?.LastOrDefault();
+		public List<Log> Logs { get; private set; }
+		public string LastError => Logs.LastOrDefault().Messages?.LastOrDefault();
 		public bool LastTestHasPassed { get; internal set; }
 
 
 
 		public void Reset() {
-			Results = new List<ValidationResult>();
+			Logs = new List<Log>();
 			_subjectName = null;
 			_subjectValue = null;
 			_subjectEqualizer = null;
 			_subjectIsValid = false;
 			_skipChecks = false;
-			_subjectResult = new ValidationResult();
+			_subjectLog = new Log();
 			LastTestHasPassed = true;
 		}
 
@@ -52,23 +52,23 @@ namespace Limcap.LightValidator {
 
 		internal void AddErrorMessage(string msg) {
 			if (_subjectIsValid) {
-				Results = Results ?? new List<ValidationResult>();
-				LoadResultInstance();
+				Logs = Logs ?? new List<Log>();
+				LoadLogsInstance();
 			}
-			_subjectResult.Messages.Add(msg);
+			_subjectLog.Messages.Add(msg);
 		}
 
 
 
-		private void LoadResultInstance() {
-			for (int i = 0; i < Results.Count; i++) {
-				if (Results[i].Subject == _subjectName) {
-					_subjectResult = Results[i];
+		private void LoadLogsInstance() {
+			for (int i = 0; i < Logs.Count; i++) {
+				if (Logs[i].Subject == _subjectName) {
+					_subjectLog = Logs[i];
 					return;
 				}
 			}
-			_subjectResult = new ValidationResult(_subjectName);
-			Results.Add(_subjectResult);
+			_subjectLog = new Log(_subjectName);
+			Logs.Add(_subjectLog);
 		}
 	}
 
@@ -88,7 +88,7 @@ namespace Limcap.LightValidator {
 			v._subjectValue = value;
 			v._subjectIsValid = true;
 			v._skipChecks = false;
-			v._subjectResult = default;
+			v._subjectLog = default;
 			v._subjectEqualizer = true;
 			v.LastTestHasPassed = true;
 			return new Subject<V>(v);
@@ -113,7 +113,7 @@ namespace Limcap.LightValidator {
 		public string Name { get => v._subjectName; private set => v._subjectName = value; }
 		public V Value { get => IsRightValueType ? v._subjectValue : default(V); internal set => v._subjectValue = value; }
 		public bool IsValid => v._subjectIsValid;
-		public ValidationResult Result => v._subjectResult;
+		public Log Log => v._subjectLog;
 		private bool IsRightValueType => v._subjectValue == null && default(V) == null || v._subjectValue.GetType() == typeof(V);
 
 
@@ -240,8 +240,8 @@ namespace Limcap.LightValidator {
 
 
 	[DebuggerDisplay("{DD(), nq}")]
-	public struct ValidationResult {
-		public ValidationResult(string subject) { Subject = subject; Messages = new List<string>(); }
+	public struct Log {
+		public Log(string subject) { Subject = subject; Messages = new List<string>(); }
 		public readonly string Subject;
 		public readonly List<string> Messages;
 		#if DEBUG
