@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using Ps = Limcap.LightValidator.Subject<string>;
 
 namespace Limcap.LightValidator {
-	public enum BlankType { None, Null, Empty, Blank }
+
 	/// <summary>
 	///	Provides validation for any object and its members.
 	/// </summary>
@@ -20,7 +20,6 @@ namespace Limcap.LightValidator {
 		internal dynamic _subjectValue;
 		internal bool _skipChecks;
 		internal bool _subjectIsValid;
-		internal BlankType _allowedBlankType;
 		internal Log _subjectLog;
 
 
@@ -35,9 +34,8 @@ namespace Limcap.LightValidator {
 			Logs = new List<Log>();
 			_subjectName = null;
 			_subjectValue = null;
-			_skipChecks = false;
 			_subjectIsValid = false;
-			_allowedBlankType = BlankType.None;
+			_skipChecks = false;
 			_subjectLog = new Log();
 			LastTestHasPassed = true;
 		}
@@ -79,16 +77,15 @@ namespace Limcap.LightValidator {
 
 	public static class Ext_Validator {
 		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
-		// do linter sobre o Subject<IEnumerable<T>>, o que faz com que as chamadas do método Subject com
+		// do linter sobre o Subject<IEnumerable<V>>, o que faz com que as chamadas do método Subject com
 		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
-		// para os métodos de extensão de Subject<IEnumerable<T>> ficam marcados como erro no linter.
+		// para os métodos de extensão de Subject<IEnumerable<V>> ficam marcados como erro no linter.
 		// Sendo extensão, ele cai na hierarquia de resolução resolvendo o problema.
 		public static Subject<V> Subject<V>(this Validator v, string name, V value) {
 			v._subjectName = name;
 			v._subjectValue = value;
-			v._skipChecks = false;
 			v._subjectIsValid = true;
-			v._allowedBlankType = BlankType.None;
+			v._skipChecks = false;
 			v._subjectLog = default;
 			v.LastTestHasPassed = true;
 			return new Subject<V>(v);
@@ -113,7 +110,6 @@ namespace Limcap.LightValidator {
 		public string Name { get => v._subjectName; private set => v._subjectName = value; }
 		public V Value { get => IsRightValueType ? v._subjectValue : default(V); internal set => v._subjectValue = value; }
 		public bool IsValid => v._subjectIsValid;
-		internal BlankType AllowedBlank { get => v._allowedBlankType; set => v._allowedBlankType = value; }
 		public Log Log => v._subjectLog;
 		private bool IsRightValueType => v._subjectValue == null && default(V) == null || v._subjectValue.GetType() == typeof(V);
 
@@ -127,10 +123,7 @@ namespace Limcap.LightValidator {
 
 		public Subject<T> To<T>(Func<V, T> converter, string msg = null) {
 			var newSubject = new Subject<T>(v);
-			try {
-				if (IsBlankAllowed()) { v._subjectValue = default(T); }
-				else { v._subjectValue = converter(v._subjectValue); }
-			}
+			try { v._subjectValue = converter(v._subjectValue); }
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
@@ -144,10 +137,7 @@ namespace Limcap.LightValidator {
 
 		public Subject<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
 			var newSubject = new Subject<T>(v);
-			try {
-				if (IsBlankAllowed()) { v._subjectValue = default(T); }
-				else { v._subjectValue = converter(v._subjectValue, supplement); }
-			}
+			try { v._subjectValue = converter(v._subjectValue, supplement); }
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
@@ -164,7 +154,7 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check(string failureMessage, ValidationTest<V> test) {
-			if (IsBlankAllowed() || v._skipChecks || !v.LastTestHasPassed) return this;
+			if (v._skipChecks || !v.LastTestHasPassed) return this;
 			try {
 				var success = test(v._subjectValue);
 				if (!success) v.AddErrorMessage(failureMessage);
@@ -182,7 +172,7 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
-			if (IsBlankAllowed() || v._skipChecks || !v.LastTestHasPassed) return this;
+			if (v._skipChecks || !v.LastTestHasPassed) return this;
 			try {
 				var success = test(v._subjectValue, testArg);
 				if (!success) v.AddErrorMessage(failureMessage);
@@ -200,7 +190,7 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check(string failureMessage, bool test) {
-			if (v._skipChecks || !v.LastTestHasPassed) return this;
+			if (!v.LastTestHasPassed) return this;
 			v.LastTestHasPassed = test;
 			v._skipChecks = !test;
 			if (!test) v.AddErrorMessage(failureMessage);
@@ -215,17 +205,6 @@ namespace Limcap.LightValidator {
 
 		public Subject<V> Skip(bool condition) { v._skipChecks = !condition; return this; }
 		public Subject<V> Skip(Func<V, bool> condition) { v._skipChecks = !condition(Value); return this; }
-
-
-
-		private bool IsBlankAllowed() {
-			var val = v._subjectValue;
-			var allow = v._allowedBlankType;
-			if (allow == BlankType.Blank && (val == null || (val is string v2 && !v2.Trim().Any()))) return true;
-			else if (allow == BlankType.Empty && (val == null || (val is IEnumerable<V> v1 && !v1.Any()))) return true;
-			else if (allow == BlankType.Null && val == null) return true;
-			return false;
-		}
 	}
 
 
@@ -399,9 +378,6 @@ namespace Limcap.LightValidator {
 		public static Subject<T> GetCurrentValue<T>(this Subject<T> p, out T variable) { variable = p.Value; return p; }
 		public static Subject<IEnumerable<T>> SkipIfBlank<T>(this Subject<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
 		public static Ps SkipIfBlank(this Ps p) { p.Skip(!p.Value.IsBlank()); return p; }
-		public static Subject<T> AllowNull<T>(this Subject<T> p) { p.AllowedBlank = BlankType.Null; return p; }
-		public static Subject<IEnumerable<V>> AllowEmpty<V>(this Subject<IEnumerable<V>> p) { p.AllowedBlank = BlankType.Empty; return p; }
-		public static Subject<string> AllowBlank(this Ps p) { p.AllowedBlank = BlankType.Blank; return p; }
 	}
 
 
