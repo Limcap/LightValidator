@@ -97,9 +97,6 @@ namespace Limcap.LightValidator {
 	public struct Subject<V> {
 
 		internal Subject(Validator v) { this.v = v; }
-
-
-
 		private Validator v;
 
 
@@ -115,11 +112,13 @@ namespace Limcap.LightValidator {
 		public Subject<V> SetValue(V value) { Value = value; return this; }
 
 
+
 		public Subject<T> Cast<T>() {
 			try {	v._subjectValue = (T)v._subjectValue;	}
 			catch { v._subjectValue = default(T); }
 			return new Subject<T>(v);
 		}
+
 
 
 		public Subject<T> To<T>(Func<V, T> converter, string msg = null) {
@@ -364,7 +363,6 @@ namespace Limcap.LightValidator {
 		public static Subject<DateTime> AsDate(this Ps p) => p.To(o => o.ToDate(), "Não é uma data válida");
 		public static Subject<DateTime?> AsNullableDate(this Ps p) => p.To(o => o.ToNullableDate(), "Não é uma data válida");
 
-		//static Subject<N> _asT<N>(Ps p, Func<string,N> converter) => p.To(converter);
 		static Subject<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
 		static string _msgN<N>() => $"Não é um número válido do tipo '{typeof(N).Name}'";
 		static DateTime _parseDT(string v, string f) => DateTime.ParseExact(v, f, CultureInfo.CurrentCulture);
