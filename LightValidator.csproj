@@ -27,6 +27,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="StrOp.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.3.0" />
 	</ItemGroup>
 
