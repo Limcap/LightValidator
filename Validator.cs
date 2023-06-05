@@ -230,8 +230,11 @@ namespace Limcap.LightValidator {
 
 
 	internal static class Tests {
+		public static bool Null<V>(V x) => x == null;
 		public static bool NotNull<V>(V x) => x != null;
+		public static bool Empty<V>(IEnumerable<V> x) => x == null || x.Count() > 0;
 		public static bool NotEmpty<V>(IEnumerable<V> x) => x != null && x.Count() > 0;
+		public static bool Blank(string x) => string.IsNullOrWhiteSpace(x);
 		public static bool NotBlank(string x) => !string.IsNullOrWhiteSpace(x);
 		public static bool IsMatch(string x, string a) => x != null && Regex.IsMatch(x, a);
 		public static bool In<V>(V x, IEnumerable<V> a) => x != null && a.Contains(x);
@@ -256,6 +259,9 @@ namespace Limcap.LightValidator {
 
 	public static class Ext_Subject_Checks {
 		// generic
+		public static Subject<V> IsNull<V>(this Subject<V> p, string msg = null) {
+			p.Check(msg ?? $"Deve ser nulo", Tests.Null); return p;
+		}
 		public static Subject<V> IsNotNull<V>(this Subject<V> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ser nulo", Tests.NotNull); return p;
 		}
@@ -283,8 +289,11 @@ namespace Limcap.LightValidator {
 		}
 
 		// IEnumerable
+		public static Subject<IEnumerable<V>> IsEmpty<V>(this Subject<IEnumerable<V>> p, string msg = null) {
+			p.Check(msg ?? $"Deve ficar vazio", Tests.Empty); return p;
+		}
 		public static Subject<IEnumerable<V>> IsNotEmpty<V>(this Subject<IEnumerable<V>> p, string msg = null) {
-			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
+			p.Check(msg ?? $"Não pode ficar vazio", Tests.NotEmpty); return p;
 		}
 		public static Subject<IEnumerable<V>> HasLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.Length, length); return p;
@@ -308,8 +317,14 @@ namespace Limcap.LightValidator {
 		}
 
 		// string
+		public static Subject<string> IsEmpty(this Subject<string> p, string msg = null) {
+			p.Check(msg ?? $"Não deve ser preenchido", Tests.Empty); return p;
+		}
 		public static Subject<string> IsNotEmpty(this Subject<string> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
+		}
+		public static Subject<string> IsBlank(this Subject<string> p, string msg = null) {
+			p.Check(msg ?? $"Deve ficar em branco", Tests.Blank); return p;
 		}
 		public static Subject<string> IsNotBlank(this Subject<string> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.NotEmpty); return p;
