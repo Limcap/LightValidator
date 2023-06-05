@@ -375,7 +375,7 @@ namespace Limcap.LightValidator {
 
 
 	public static class Ext_Subject {
-		public static Subject<T> GetValue<T>(this Subject<T> p, out T variable) { variable = p.Value; return p; }
+		public static Subject<T> GetCurrentValue<T>(this Subject<T> p, out T variable) { variable = p.Value; return p; }
 		public static Subject<IEnumerable<T>> SkipIfBlank<T>(this Subject<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
 		public static Ps SkipIfBlank(this Ps p) { p.Skip(!p.Value.IsBlank()); return p; }
 	}
