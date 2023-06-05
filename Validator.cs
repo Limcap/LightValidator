@@ -117,7 +117,7 @@ namespace Limcap.LightValidator {
 
 		public Subject<T> Cast<T>() => new Subject<T>(v);
 
-		public Subject<V> Alter(V value) { Value = value; return this; }
+		public Subject<V> SetValue(V value) { Value = value; return this; }
 
 
 
