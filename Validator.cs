@@ -18,7 +18,6 @@ namespace Limcap.LightValidator {
 		// Current Subject fields
 		internal string _subjectName;
 		internal dynamic _subjectValue;
-		internal bool _skipChecks;
 		internal bool _subjectIsValid;
 		internal Log _subjectLog;
 
@@ -35,7 +34,6 @@ namespace Limcap.LightValidator {
 			_subjectName = null;
 			_subjectValue = null;
 			_subjectIsValid = false;
-			_skipChecks = false;
 			_subjectLog = new Log();
 			LastTestHasPassed = true;
 		}
@@ -85,7 +83,6 @@ namespace Limcap.LightValidator {
 			v._subjectName = name;
 			v._subjectValue = value;
 			v._subjectIsValid = true;
-			v._skipChecks = false;
 			v._subjectLog = default;
 			v.LastTestHasPassed = true;
 			return new Subject<V>(v);
@@ -128,7 +125,6 @@ namespace Limcap.LightValidator {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._subjectValue = default(T);
-				v._skipChecks = true;
 			}
 			return newSubject;
 		}
@@ -142,7 +138,6 @@ namespace Limcap.LightValidator {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
 				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._subjectValue = default(S);
-				v._skipChecks = true;
 			}
 			return newSubject;
 		}
@@ -154,17 +149,15 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check(string failureMessage, ValidationTest<V> test) {
-			if (v._skipChecks || !v.LastTestHasPassed) return this;
+			if (!v.LastTestHasPassed) return this;
 			try {
 				var success = test(v._subjectValue);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
-				v._skipChecks = !success;
 			}
 			catch (Exception ex) {
 				v.AddErrorMessage("[Exception] " + ex.Message);
 				v.LastTestHasPassed = false;
-				v._skipChecks = true;
 			}
 			return this;
 		}
@@ -172,17 +165,15 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
-			if (v._skipChecks || !v.LastTestHasPassed) return this;
+			if (!v.LastTestHasPassed) return this;
 			try {
 				var success = test(v._subjectValue, testArg);
 				if (!success) v.AddErrorMessage(failureMessage);
 				v.LastTestHasPassed = success;
-				v._skipChecks = !success;
 			}
 			catch (Exception ex) {
 				v.AddErrorMessage("[Exception] " + ex.Message);
 				v.LastTestHasPassed = false;
-				v._skipChecks = true;
 			}
 			return this;
 		}
@@ -192,7 +183,6 @@ namespace Limcap.LightValidator {
 		public Subject<V> Check(string failureMessage, bool test) {
 			if (!v.LastTestHasPassed) return this;
 			v.LastTestHasPassed = test;
-			v._skipChecks = !test;
 			if (!test) v.AddErrorMessage(failureMessage);
 			return this;
 		}
@@ -200,11 +190,6 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check(bool test) => Check("Valor inválido", test);
-
-
-
-		public Subject<V> Skip(bool condition) { v._skipChecks = !condition; return this; }
-		public Subject<V> Skip(Func<V, bool> condition) { v._skipChecks = !condition(Value); return this; }
 	}
 
 
@@ -376,8 +361,6 @@ namespace Limcap.LightValidator {
 
 	public static class Ext_Subject {
 		public static Subject<T> GetCurrentValue<T>(this Subject<T> p, out T variable) { variable = p.Value; return p; }
-		public static Subject<IEnumerable<T>> SkipIfBlank<T>(this Subject<IEnumerable<T>> p) { p.Skip(p.Value.Any()); return p; }
-		public static Ps SkipIfBlank(this Ps p) { p.Skip(!p.Value.IsBlank()); return p; }
 	}
 
 
