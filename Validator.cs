@@ -15,58 +15,59 @@ namespace Limcap.LightValidator {
 	/// </summary>
 	public class Validator {
 
-		// Current Subject fields
-		internal string _subjectName;
-		internal dynamic _subjectValue;
-		internal bool _subjectIsValid;
-		internal Log _subjectLog;
+		// Current NewSubject fields
+		internal string _subject;
+		internal dynamic _value;
+		internal List<String> _errors;
+		internal bool _passed;
 
 
 
-		public List<Log> Logs { get; private set; }
-		public string LastError => Logs.LastOrDefault().Messages?.LastOrDefault();
-		public bool LastTestHasPassed { get; internal set; }
+		public string CurrentSubjectName { get => _subject; set => _subject = value; }
+		public List<string> CurrentSubjectErrors { get => _errors; }
+		public Log CurrentLog => new Log(_subject, _errors);
+		public bool IsValid { get => _errors.Any(); }
 
 
 
 		public void Reset() {
-			Logs = new List<Log>();
-			_subjectName = null;
-			_subjectValue = null;
-			_subjectIsValid = false;
-			_subjectLog = new Log();
-			LastTestHasPassed = true;
+			_errors.Clear();
+			_subject = null;
+			_value = null;
+			_passed = false;
 		}
 
 
 
-		public Subject<dynamic> Subject(string name) => Ext_Validator.Subject<dynamic>(this, name, null);
-		public Subject<string> Subject(string name, string value) => Ext_Validator.Subject(this, name, value);
-		public Subject<IEnumerable<V>> Subject<V>(string name, IEnumerable<V> value) => Ext_Validator.Subject(this, name, value);
+		public Subject<dynamic> NewSubject(string name) => Ext_Validator.NewSubject<dynamic>(this, name, null);
+		public Subject<string> NewSubject(string name, string value) => Ext_Validator.NewSubject(this, name, value);
+		public Subject<IEnumerable<V>> NewSubject<V>(string name, IEnumerable<V> value) => Ext_Validator.NewSubject(this, name, value);
 
 
 
-		internal void AddErrorMessage(string msg) {
-			if (_subjectIsValid) {
-				Logs = Logs ?? new List<Log>();
-				LoadLogsInstance();
-			}
-			_subjectLog.Messages.Add(msg);
-		}
+
+
+		//internal void AddErrorMessage(string msg) {
+		//	if (_IsValid) {
+		//		Logs = Logs ?? new List<CurrentLog>();
+		//		LoadLogsInstance();
+		//	}
+		//	_subjectLog.Messages.Add(msg);
+		//}
 
 
 
-		private void LoadLogsInstance() {
-			for (int i = 0; i < Logs.Count; i++) {
-				if (Logs[i].Subject == _subjectName) {
-					_subjectLog = Logs[i];
-					return;
+		//private void LoadLogsInstance() {
+		//	for (int i = 0; i < Logs.Count; i++) {
+		//		if (Logs[i].Subject == _subject) {
+		//			_subjectLog = Logs[i];
+		//			return;
+		//		}
+		//	}
+		//	_subjectLog = new CurrentLog(_subject);
+		//	Logs.Add(_subjectLog);
+		//}
 				}
-			}
-			_subjectLog = new Log(_subjectName);
-			Logs.Add(_subjectLog);
-		}
-	}
 
 
 
@@ -75,16 +76,14 @@ namespace Limcap.LightValidator {
 
 	public static class Ext_Validator {
 		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
-		// do linter sobre o Subject<IEnumerable<V>>, o que faz com que as chamadas do método Subject com
+		// do linter sobre o NewSubject<IEnumerable<V>>, o que faz com que as chamadas do método NewSubject com
 		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
-		// para os métodos de extensão de Subject<IEnumerable<V>> ficam marcados como erro no linter.
+		// para os métodos de extensão de NewSubject<IEnumerable<V>> ficam marcados como erro no linter.
 		// Sendo extensão, ele cai na hierarquia de resolução resolvendo o problema.
-		public static Subject<V> Subject<V>(this Validator v, string name, V value) {
-			v._subjectName = name;
-			v._subjectValue = value;
-			v._subjectIsValid = true;
-			v._subjectLog = default;
-			v.LastTestHasPassed = true;
+		public static Subject<V> NewSubject<V>(this Validator v, string name, V value) {
+			v._subject = name;
+			v._value = value;
+			v._passed = false;
 			return new Subject<V>(v);
 		}
 	}
@@ -101,11 +100,12 @@ namespace Limcap.LightValidator {
 
 
 
-		public string Name { get => v._subjectName; private set => v._subjectName = value; }
-		public V Value { get => IsRightValueType ? v._subjectValue : default(V); internal set => v._subjectValue = value; }
-		public bool IsValid => v._subjectIsValid;
-		public Log Log => v._subjectLog;
-		private bool IsRightValueType => v._subjectValue == null && default(V) == null || v._subjectValue.GetType() == typeof(V);
+		public string Name { get => v._subject; private set => v._subject = value; }
+		public V Value { get => IsRightValueType ? v._value : default(V); internal set => v._value = value; }
+		public bool IsValid => v.IsValid;
+		public bool PreviousTestHasPassed { get => v._passed; }
+		private bool IsRightValueType => v._value == null && default(V) == null || v._value.GetType() == typeof(V);
+		internal List<string> Errors => v._errors;
 
 
 
@@ -114,8 +114,8 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<T> Cast<T>() {
-			try {	v._subjectValue = (T)v._subjectValue;	}
-			catch { v._subjectValue = default(T); }
+			try {	v._value = (T)v._value;	}
+			catch { v._value = default(T); }
 			return new Subject<T>(v);
 		}
 
@@ -123,11 +123,12 @@ namespace Limcap.LightValidator {
 
 		public Subject<T> To<T>(Func<V, T> converter, string msg = null) {
 			var newSubject = new Subject<T>(v);
-			try { v._subjectValue = converter(v._subjectValue); }
+			try { v._value = converter(v._value); }
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
-				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
-				v._subjectValue = default(T);
+				//v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._errors.Add(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._value = default(T);
 			}
 			return newSubject;
 		}
@@ -136,11 +137,12 @@ namespace Limcap.LightValidator {
 
 		public Subject<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
 			var newSubject = new Subject<T>(v);
-			try { v._subjectValue = converter(v._subjectValue, supplement); }
+			try { v._value = converter(v._value, supplement); }
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
-				v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
-				v._subjectValue = default(S);
+				//v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._errors.Add(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._value = default(S);
 			}
 			return newSubject;
 		}
@@ -152,15 +154,15 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check(string failureMessage, ValidationTest<V> test) {
-			if (!v.LastTestHasPassed) return this;
+			if (!v.IsValid) return this;
 			try {
-				var success = test(v._subjectValue);
-				if (!success) v.AddErrorMessage(failureMessage);
-				v.LastTestHasPassed = success;
+				var success = test(v._value);
+				if (!success) v._errors.Add(failureMessage);
+				v._passed = success;
 			}
 			catch (Exception ex) {
-				v.AddErrorMessage("[Exception] " + ex.Message);
-				v.LastTestHasPassed = false;
+				v._errors.Add("[Exception] " + ex.Message);
+				v._passed = false;
 			}
 			return this;
 		}
@@ -168,15 +170,15 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
-			if (!v.LastTestHasPassed) return this;
+			if (!v._passed) return this;
 			try {
-				var success = test(v._subjectValue, testArg);
-				if (!success) v.AddErrorMessage(failureMessage);
-				v.LastTestHasPassed = success;
+				var success = test(v._value, testArg);
+				if (!success) v._errors.Add(failureMessage);
+				v._passed = success;
 			}
 			catch (Exception ex) {
-				v.AddErrorMessage("[Exception] " + ex.Message);
-				v.LastTestHasPassed = false;
+				v._errors.Add("[Exception] " + ex.Message);
+				v._passed = false;
 			}
 			return this;
 		}
@@ -184,9 +186,9 @@ namespace Limcap.LightValidator {
 
 
 		public Subject<V> Check(string failureMessage, bool test) {
-			if (!v.LastTestHasPassed) return this;
-			v.LastTestHasPassed = test;
-			if (!test) v.AddErrorMessage(failureMessage);
+			if (!v._passed) return this;
+			v._passed = test;
+			if (!test) v._errors.Add(failureMessage);
 			return this;
 		}
 
@@ -203,6 +205,7 @@ namespace Limcap.LightValidator {
 	[DebuggerDisplay("{DD(), nq}")]
 	public struct Log {
 		public Log(string subject) { Subject = subject; Messages = new List<string>(); }
+		public Log(string subject, List<string> messages ) { Subject = subject; Messages = messages; }
 		public readonly string Subject;
 		public readonly List<string> Messages;
 		#if DEBUG
