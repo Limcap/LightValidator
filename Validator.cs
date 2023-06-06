@@ -405,7 +405,7 @@ namespace Limcap.LightValidator {
 	public static class Ext_String {
 
 		public static string RemoveChars(this string str, string chars) {
-			return Regex.Replace(str, Regex.Escape(chars), "");
+			return Regex.Replace(str, $"[{Regex.Escape(chars)}]", "");
 		}
 
 
