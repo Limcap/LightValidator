@@ -10,6 +10,27 @@ using Ps = Limcap.LightValidator.Subject<string>;
 
 namespace Limcap.LightValidator {
 
+	public struct Report {
+		public List<Log> Logs { get; private set; }
+		public bool HasErrors { get => Logs.Any(); }
+		public void Reset() { Logs.Clear(); }
+		public void Add(Log log) { Add(null, log); }
+		public void Add(string prefix, Log log) {
+			var subject = prefix != null ? $"{prefix}, {log.Subject}" : log.Subject;
+			if (log.Messages != null && log.Messages.Any())
+				Logs.Add(new Log(subject, log.Messages));
+		}
+		public void Merge(Report report) { Merge(null, report); }
+		public void Merge(string prefix, Report report) {
+			foreach (var log in report.Logs) Add(prefix, log);
+		}
+	}
+
+
+
+
+
+
 	/// <summary>
 	///	Provides validation for any object and its members.
 	/// </summary>
@@ -67,7 +88,7 @@ namespace Limcap.LightValidator {
 		//	_subjectLog = new CurrentLog(_subject);
 		//	Logs.Add(_subjectLog);
 		//}
-				}
+	}
 
 
 
