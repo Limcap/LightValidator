@@ -73,6 +73,7 @@ namespace Limcap.LightValidator {
 		public ValidatorScope(string scope, Validator v) {
 			v._scope = scope;
 			V = v;
+			v.Clear();
 		}
 		internal Validator V;
 
