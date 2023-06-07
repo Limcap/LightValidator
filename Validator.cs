@@ -29,9 +29,9 @@ namespace Limcap.LightValidator {
 		public Report Report => _report;
 		public bool ElementIsValid { get => !_errors.Any(); }
 
-		public void Reset() { Clear(); _report.Reset(); }
+		public void Reset() { Clear(); _report.Clear(); }
 		public void Clear() { _errors.Clear(); _element = null; _value = null; _passed = false; }
-		public ValidatorScope NewScope(string name) => new ValidatorScope(name, this);
+		public ValidationScope NewScope(string name) => new ValidationScope(name, this);
 		public Element<dynamic> NewElement(string name) => Ext_Validator.NewElement<dynamic>(this, name, null);
 		public Element<string> NewElement(string name, string value) => Ext_Validator.NewElement(this, name, value);
 		public Element<IEnumerable<V>> NewElement<V>(string name, IEnumerable<V> value) => Ext_Validator.NewElement(this, name, value);
@@ -69,8 +69,8 @@ namespace Limcap.LightValidator {
 
 
 
-	public struct ValidatorScope {
-		public ValidatorScope(string scope, Validator v) {
+	public struct ValidationScope {
+		public ValidationScope(string scope, Validator v) {
 			v._scope = scope;
 			V = v;
 			v.Clear();
@@ -98,7 +98,7 @@ namespace Limcap.LightValidator {
 		public List<Log> Logs { get => _L; }
 		public bool HasErrors { get => Logs?.Any() ?? false; }
 
-		public void Reset() { Logs.Clear(); }
+		public void Clear() { Logs.Clear(); }
 		public void Include(Report report) { Include(null, report); }
 		public void Include(string scope, Report report) { foreach (var log in report.Logs) Add(scope, log); }
 		public void Add(Log log) { Add(null, log); }
