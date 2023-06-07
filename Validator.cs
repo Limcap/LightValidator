@@ -10,84 +10,39 @@ using Ps = Limcap.LightValidator.Subject<string>;
 
 namespace Limcap.LightValidator {
 
-	public struct Report {
-		public List<Log> Logs { get; private set; }
-		public bool HasErrors { get => Logs.Any(); }
-		public void Reset() { Logs.Clear(); }
-		public void Add(Log log) { Add(null, log); }
-		public void Add(string prefix, Log log) {
-			var subject = prefix != null ? $"{prefix}, {log.Subject}" : log.Subject;
-			if (log.Messages != null && log.Messages.Any())
-				Logs.Add(new Log(subject, log.Messages));
-		}
-		public void Merge(Report report) { Merge(null, report); }
-		public void Merge(string prefix, Report report) {
-			foreach (var log in report.Logs) Add(prefix, log);
-		}
-	}
-
-
-
-
-
-
 	/// <summary>
 	///	Provides validation for any object and its members.
 	/// </summary>
 	public class Validator {
 
-		// Current NewSubject fields
+		public Validator(string group = null) { CurrentGroup = group; }
+
+		internal string _group;
 		internal string _subject;
 		internal dynamic _value;
-		internal List<String> _errors;
 		internal bool _passed;
+		internal readonly List<string> _errors = new List<string>();
+		internal readonly Report _report = new Report();
 
+		public string CurrentGroup { get => _group; set => _group = value; }
+		public string CurrentSubject { get => _subject; set => _subject = value; }
+		public List<string> SubjectErrors { get => _errors; }
+		public Report CurrentReport => _report;
+		public bool SubjectIsValid { get => _errors.Any(); }
 
-
-		public string CurrentSubjectName { get => _subject; set => _subject = value; }
-		public List<string> CurrentSubjectErrors { get => _errors; }
-		public Log CurrentLog => new Log(_subject, _errors);
-		public bool IsValid { get => _errors.Any(); }
-
-
-
-		public void Reset() {
-			_errors.Clear();
-			_subject = null;
-			_value = null;
-			_passed = false;
-		}
-
-
-
+		public void Reset() { ResetSubject(); _report.Reset(); }
+		public void ResetSubject() { _errors.Clear(); _subject = null; _value = null; _passed = false; }
+		public ValidationGroup NewGroup(string name) => new ValidationGroup(name, this);
 		public Subject<dynamic> NewSubject(string name) => Ext_Validator.NewSubject<dynamic>(this, name, null);
 		public Subject<string> NewSubject(string name, string value) => Ext_Validator.NewSubject(this, name, value);
 		public Subject<IEnumerable<V>> NewSubject<V>(string name, IEnumerable<V> value) => Ext_Validator.NewSubject(this, name, value);
 
-
-
-
-
-		//internal void AddErrorMessage(string msg) {
-		//	if (_IsValid) {
-		//		Logs = Logs ?? new List<CurrentLog>();
-		//		LoadLogsInstance();
-		//	}
-		//	_subjectLog.Messages.Add(msg);
-		//}
-
-
-
-		//private void LoadLogsInstance() {
-		//	for (int i = 0; i < Logs.Count; i++) {
-		//		if (Logs[i].Subject == _subject) {
-		//			_subjectLog = Logs[i];
-		//			return;
-		//		}
-		//	}
-		//	_subjectLog = new CurrentLog(_subject);
-		//	Logs.Add(_subjectLog);
-		//}
+		internal void AddLog(string msg) {
+			if (_errors.Any()) return;
+			_errors.Add(msg);
+			var title = _group != null ? $"{_group}, {_subject}" : _subject;
+			_report.Add(title, msg);
+		}
 	}
 
 
@@ -105,7 +60,50 @@ namespace Limcap.LightValidator {
 			v._subject = name;
 			v._value = value;
 			v._passed = false;
+			v._errors.Clear();
 			return new Subject<V>(v);
+		}
+	}
+
+
+
+
+
+
+	public struct ValidationGroup {
+		public ValidationGroup(string group, Validator v) {
+			v._group = group;
+			V = v;
+		}
+		internal Validator V;
+
+		public string GroupName { get => V._group; }
+		public string SubjectName { get => V._subject; set => V._subject = value; }
+		public List<string> SubjectErrors => V._errors;
+		public bool SubjectIsValid => V.SubjectIsValid;
+
+		public Subject<dynamic> NewSubject(string name) => V.NewSubject(name);
+		public Subject<string> NewSubject(string name, string value) => V.NewSubject(name, value);
+		public Subject<IEnumerable<T>> NewSubject<T>(string name, IEnumerable<T> value) => V.NewSubject(name, value);
+		public Subject<T> NewSubject<T>(string name, T value) => V.NewSubject(name, value);
+	}
+
+
+
+
+
+
+	public class Report {
+		public List<Log> Logs { get; private set; } = new List<Log>();
+		public bool HasErrors { get => Logs?.Any() ?? false; }
+		public void Reset() { Logs.Clear(); }
+		public void Include(Report report) { Include(null, report); }
+		public void Include(string group, Report report) { foreach (var log in report.Logs) Add(group, log); }
+		public void Add(Log log) { Add(null, log); }
+		public void Add(string title, string text) { Logs.Add(new Log(title, text)); }
+		public void Add(string title, Log log) {
+			var subject = title != null ? $"{title}, {log.Subject}" : log.Subject;
+			if (log.Description != null && log.Description.Any()) Logs.Add(new Log(subject, log.Description));
 		}
 	}
 
@@ -119,101 +117,84 @@ namespace Limcap.LightValidator {
 		internal Subject(Validator v) { this.v = v; }
 		private Validator v;
 
-
-
 		public string Name { get => v._subject; private set => v._subject = value; }
 		public V Value { get => IsRightValueType ? v._value : default(V); internal set => v._value = value; }
-		public bool IsValid => v.IsValid;
+		public bool IsValid => v.SubjectIsValid;
 		public bool PreviousTestHasPassed { get => v._passed; }
 		private bool IsRightValueType => v._value == null && default(V) == null || v._value.GetType() == typeof(V);
 		internal List<string> Errors => v._errors;
 
-
-
 		public Subject<V> SetValue(V value) { Value = value; return this; }
 
-
-
 		public Subject<T> Cast<T>() {
+			var newSubject = new Subject<T>(v);
+			if (!v.SubjectIsValid) return newSubject;
 			try {	v._value = (T)v._value;	}
 			catch { v._value = default(T); }
-			return new Subject<T>(v);
+			return newSubject;
 		}
-
-
 
 		public Subject<T> To<T>(Func<V, T> converter, string msg = null) {
 			var newSubject = new Subject<T>(v);
+			if (!v.SubjectIsValid) return newSubject;
 			try { v._value = converter(v._value); }
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
-				//v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
-				v._errors.Add(msg ?? DefaultConvertMsg<T>(exInfo));
+				v.AddLog(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._value = default(T);
 			}
 			return newSubject;
 		}
 
-
-
 		public Subject<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
 			var newSubject = new Subject<T>(v);
+			if (!v.SubjectIsValid) return newSubject;
 			try { v._value = converter(v._value, supplement); }
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
 				//v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
-				v._errors.Add(msg ?? DefaultConvertMsg<T>(exInfo));
+				v.AddLog(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._value = default(S);
 			}
 			return newSubject;
 		}
 
-
-
 		static string DefaultConvertMsg<T>(string info) => $"Não é um valor válido para o tipo '{typeof(T).Name}' - [{info}]";
 
-
-
 		public Subject<V> Check(string failureMessage, ValidationTest<V> test) {
-			if (!v.IsValid) return this;
+			if (!v.SubjectIsValid) return this;
 			try {
 				var success = test(v._value);
-				if (!success) v._errors.Add(failureMessage);
+				if (!success) v.AddLog(failureMessage);
 				v._passed = success;
 			}
 			catch (Exception ex) {
-				v._errors.Add("[Exception] " + ex.Message);
+				v.AddLog("[Exception] " + ex.Message);
 				v._passed = false;
 			}
 			return this;
 		}
-
-
 
 		public Subject<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
-			if (!v._passed) return this;
+			if (!v.SubjectIsValid) return this;
 			try {
 				var success = test(v._value, testArg);
-				if (!success) v._errors.Add(failureMessage);
+				if (!success) v.AddLog(failureMessage);
 				v._passed = success;
 			}
 			catch (Exception ex) {
-				v._errors.Add("[Exception] " + ex.Message);
+				v.AddLog("[Exception] " + ex.Message);
 				v._passed = false;
 			}
 			return this;
 		}
 
-
-
 		public Subject<V> Check(string failureMessage, bool test) {
-			if (!v._passed) return this;
+			if (!v.SubjectIsValid) return this;
 			v._passed = test;
-			if (!test) v._errors.Add(failureMessage);
+			if (!test) v.AddLog(failureMessage);
 			return this;
 		}
-
-
 
 		public Subject<V> Check(bool test) => Check("Valor inválido", test);
 	}
@@ -225,15 +206,15 @@ namespace Limcap.LightValidator {
 
 	[DebuggerDisplay("{DD(), nq}")]
 	public struct Log {
-		public Log(string subject) { Subject = subject; Messages = new List<string>(); }
-		public Log(string subject, List<string> messages ) { Subject = subject; Messages = messages; }
+		public Log(string subject, string description) { Subject = subject; Description = description; }
+
 		public readonly string Subject;
-		public readonly List<string> Messages;
+		public readonly string Description;
 		#if DEBUG
 		private string DD() {
-			var str1 = nameof(Subject) + (Subject is null ? "=null" : $"=\"{Subject}\"");
-			var str2 = nameof(Messages) + (Messages is null ? $"=null" : $".Count={Messages.Count}");
-			return $"{str1}, {str2}";
+			var str1 = Subject is null ? "[No Subject]" : $"\"{Subject}\"";
+			var str2 = Description is null ? $"[No Description]" : $"\"{Description}\"";
+			return $"{str1} ==> {str2}";
 		}
 		#endif
 	}
@@ -432,21 +413,17 @@ namespace Limcap.LightValidator {
 			return Regex.Replace(str, $"[{Regex.Escape(chars)}]", "");
 		}
 
-
 		public static string RemoveChars(this string str, IEnumerable<char> chars) {
 			return RemoveChars(str, string.Join(string.Empty, chars));
 		}
-
 
 		public static string RemoveChars(this string str, params char[] chars) {
 			return RemoveChars(str, string.Join(string.Empty, chars));
 		}
 
-
 		public static string Crop(this string str, int startIndex, int length) {
 			return startIndex + length > str.Length - 1 ? str.Substring(startIndex) : str.Substring(startIndex, length);
 		}
-
 
 		public static string Replace(this string str, params ValueTuple<char, char>[] pairs) {
 			var array = str.ToCharArray();
@@ -461,7 +438,6 @@ namespace Limcap.LightValidator {
 			return array.ToString();
 		}
 
-
 		public static string RemoveDiacritics(this string text) {
 			var normalizedString = text.Normalize(NormalizationForm.FormD);
 			var sb = new StringBuilder(normalizedString.Length);
@@ -473,16 +449,13 @@ namespace Limcap.LightValidator {
 			return sb.ToString().Normalize(NormalizationForm.FormC);
 		}
 
-
 		public static string ToASCII(this string text, string replaceInvalidWith = "~") {
 			return Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]", replaceInvalidWith);
 		}
 
-
 		public static string RemoveNonASCII(this string text) {
 			return Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", string.Empty);
 		}
-
 
 		public static bool IsEmpty(this string str) { return string.IsNullOrEmpty(str); }
 		public static bool IsBlank(this string str) { return string.IsNullOrWhiteSpace(str); }
