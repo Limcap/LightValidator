@@ -14,7 +14,6 @@ namespace Limcap.LightValidator {
 	///	Provides validation for any object and its members.
 	/// </summary>
 	public class Validator {
-
 		public Validator(string scope = null) { Scope = scope; }
 
 		internal string _scope;
@@ -28,7 +27,7 @@ namespace Limcap.LightValidator {
 		public string Element { get => _element; set => _element = value; }
 		public List<string> ElementErrors { get => _errors; }
 		public Report Report => _report;
-		public bool ElementIsValid { get => _errors.Any(); }
+		public bool ElementIsValid { get => !_errors.Any(); }
 
 		public void Reset() { Clear(); _report.Reset(); }
 		public void Clear() { _errors.Clear(); _element = null; _value = null; _passed = false; }
@@ -94,16 +93,18 @@ namespace Limcap.LightValidator {
 
 
 	public class Report {
-		public List<Log> Logs { get; private set; } = new List<Log>();
+		private List<Log> _L = new List<Log>();
+		public List<Log> Logs { get => _L; }
 		public bool HasErrors { get => Logs?.Any() ?? false; }
+
 		public void Reset() { Logs.Clear(); }
 		public void Include(Report report) { Include(null, report); }
 		public void Include(string scope, Report report) { foreach (var log in report.Logs) Add(scope, log); }
 		public void Add(Log log) { Add(null, log); }
-		public void Add(string title, string text) { Logs.Add(new Log(title, text)); }
-		public void Add(string title, Log log) {
-			var element = title != null ? $"{title}, {log.Element}" : log.Element;
-			if (log.Description != null && log.Description.Any()) Logs.Add(new Log(element, log.Description));
+		public void Add(string element, string message) { Logs.Add(new Log(element, message)); }
+		public void Add(string scope, Log log) {
+			var element = scope != null ? $"{scope}, {log.Element}" : log.Element;
+			if (log.Message != null && log.Message.Any()) Logs.Add(new Log(element, log.Message));
 		}
 	}
 
@@ -113,7 +114,6 @@ namespace Limcap.LightValidator {
 
 	// outros nomes: target, item, article, unit, piece, scope, element
 	public struct Element<V> {
-
 		internal Element(Validator v) { this.v = v; }
 		private Validator v;
 
@@ -206,14 +206,14 @@ namespace Limcap.LightValidator {
 
 	[DebuggerDisplay("{DD(), nq}")]
 	public struct Log {
-		public Log(string element, string description) { Element = element; Description = description; }
+		public Log(string element, string message) { Element = element; Message = message; }
 
 		public readonly string Element;
-		public readonly string Description;
+		public readonly string Message;
 		#if DEBUG
 		private string DD() {
 			var str1 = Element is null ? "[No Element]" : $"\"{Element}\"";
-			var str2 = Description is null ? $"[No Description]" : $"\"{Description}\"";
+			var str2 = Message is null ? $"[No Description]" : $"\"{Message}\"";
 			return $"{str1} ==> {str2}";
 		}
 		#endif
@@ -408,7 +408,6 @@ namespace Limcap.LightValidator {
 
 
 	public static class Ext_String {
-
 		public static string RemoveChars(this string str, string chars) {
 			return Regex.Replace(str, $"[{Regex.Escape(chars)}]", "");
 		}
@@ -504,7 +503,7 @@ namespace Limcap.LightValidator {
 		//public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
 		//public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
 		//public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
-		//public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> text) => text.Select(t => t.RemoveDiacritics());
+		//public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> message) => message.Select(t => t.RemoveDiacritics());
 	}
 
 
