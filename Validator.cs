@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
-using Ps = Limcap.LightValidator.Subject<string>;
+using Ps = Limcap.LightValidator.Element<string>;
 
 namespace Limcap.LightValidator {
 
@@ -15,32 +15,32 @@ namespace Limcap.LightValidator {
 	/// </summary>
 	public class Validator {
 
-		public Validator(string group = null) { CurrentGroup = group; }
+		public Validator(string scope = null) { Scope = scope; }
 
-		internal string _group;
-		internal string _subject;
+		internal string _scope;
+		internal string _element;
 		internal dynamic _value;
 		internal bool _passed;
 		internal readonly List<string> _errors = new List<string>();
 		internal readonly Report _report = new Report();
 
-		public string CurrentGroup { get => _group; set => _group = value; }
-		public string CurrentSubject { get => _subject; set => _subject = value; }
-		public List<string> SubjectErrors { get => _errors; }
-		public Report CurrentReport => _report;
-		public bool SubjectIsValid { get => _errors.Any(); }
+		public string Scope { get => _scope; set => _scope = value; }
+		public string Element { get => _element; set => _element = value; }
+		public List<string> ElementErrors { get => _errors; }
+		public Report Report => _report;
+		public bool ElementIsValid { get => _errors.Any(); }
 
-		public void Reset() { ResetSubject(); _report.Reset(); }
-		public void ResetSubject() { _errors.Clear(); _subject = null; _value = null; _passed = false; }
-		public ValidationGroup NewGroup(string name) => new ValidationGroup(name, this);
-		public Subject<dynamic> NewSubject(string name) => Ext_Validator.NewSubject<dynamic>(this, name, null);
-		public Subject<string> NewSubject(string name, string value) => Ext_Validator.NewSubject(this, name, value);
-		public Subject<IEnumerable<V>> NewSubject<V>(string name, IEnumerable<V> value) => Ext_Validator.NewSubject(this, name, value);
+		public void Reset() { Clear(); _report.Reset(); }
+		public void Clear() { _errors.Clear(); _element = null; _value = null; _passed = false; }
+		public ValidatorScope NewScope(string name) => new ValidatorScope(name, this);
+		public Element<dynamic> NewElement(string name) => Ext_Validator.NewElement<dynamic>(this, name, null);
+		public Element<string> NewElement(string name, string value) => Ext_Validator.NewElement(this, name, value);
+		public Element<IEnumerable<V>> NewElement<V>(string name, IEnumerable<V> value) => Ext_Validator.NewElement(this, name, value);
 
 		internal void AddLog(string msg) {
 			if (_errors.Any()) return;
 			_errors.Add(msg);
-			var title = _group != null ? $"{_group}, {_subject}" : _subject;
+			var title = _scope != null ? $"{_scope}, {_element}" : _element;
 			_report.Add(title, msg);
 		}
 	}
@@ -52,16 +52,16 @@ namespace Limcap.LightValidator {
 
 	public static class Ext_Validator {
 		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
-		// do linter sobre o NewSubject<IEnumerable<V>>, o que faz com que as chamadas do método NewSubject com
+		// do linter sobre o NewElement<IEnumerable<V>>, o que faz com que as chamadas do método NewElement com
 		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
-		// para os métodos de extensão de NewSubject<IEnumerable<V>> ficam marcados como erro no linter.
+		// para os métodos de extensão de NewElement<IEnumerable<V>> ficam marcados como erro no linter.
 		// Sendo extensão, ele cai na hierarquia de resolução resolvendo o problema.
-		public static Subject<V> NewSubject<V>(this Validator v, string name, V value) {
-			v._subject = name;
+		public static Element<V> NewElement<V>(this Validator v, string name, V value) {
+			v._element = name;
 			v._value = value;
 			v._passed = false;
 			v._errors.Clear();
-			return new Subject<V>(v);
+			return new Element<V>(v);
 		}
 	}
 
@@ -70,22 +70,22 @@ namespace Limcap.LightValidator {
 
 
 
-	public struct ValidationGroup {
-		public ValidationGroup(string group, Validator v) {
-			v._group = group;
+	public struct ValidatorScope {
+		public ValidatorScope(string scope, Validator v) {
+			v._scope = scope;
 			V = v;
 		}
 		internal Validator V;
 
-		public string GroupName { get => V._group; }
-		public string SubjectName { get => V._subject; set => V._subject = value; }
-		public List<string> SubjectErrors => V._errors;
-		public bool SubjectIsValid => V.SubjectIsValid;
+		public string Name { get => V._scope; }
+		//public string ElementName { get => V._element; set => V._element = value; }
+		//public List<string> ElementErrors => V._errors;
+		//public bool ElementIsValid => V.ElementIsValid;
 
-		public Subject<dynamic> NewSubject(string name) => V.NewSubject(name);
-		public Subject<string> NewSubject(string name, string value) => V.NewSubject(name, value);
-		public Subject<IEnumerable<T>> NewSubject<T>(string name, IEnumerable<T> value) => V.NewSubject(name, value);
-		public Subject<T> NewSubject<T>(string name, T value) => V.NewSubject(name, value);
+		public Element<dynamic> NewElement(string name) => V.NewElement(name);
+		public Element<string> NewElement(string name, string value) => V.NewElement(name, value);
+		public Element<IEnumerable<T>> NewElement<T>(string name, IEnumerable<T> value) => V.NewElement(name, value);
+		public Element<T> NewElement<T>(string name, T value) => V.NewElement(name, value);
 	}
 
 
@@ -98,12 +98,12 @@ namespace Limcap.LightValidator {
 		public bool HasErrors { get => Logs?.Any() ?? false; }
 		public void Reset() { Logs.Clear(); }
 		public void Include(Report report) { Include(null, report); }
-		public void Include(string group, Report report) { foreach (var log in report.Logs) Add(group, log); }
+		public void Include(string scope, Report report) { foreach (var log in report.Logs) Add(scope, log); }
 		public void Add(Log log) { Add(null, log); }
 		public void Add(string title, string text) { Logs.Add(new Log(title, text)); }
 		public void Add(string title, Log log) {
-			var subject = title != null ? $"{title}, {log.Subject}" : log.Subject;
-			if (log.Description != null && log.Description.Any()) Logs.Add(new Log(subject, log.Description));
+			var element = title != null ? $"{title}, {log.Element}" : log.Element;
+			if (log.Description != null && log.Description.Any()) Logs.Add(new Log(element, log.Description));
 		}
 	}
 
@@ -111,44 +111,44 @@ namespace Limcap.LightValidator {
 
 
 
+	// outros nomes: target, item, article, unit, piece, scope, element
+	public struct Element<V> {
 
-	public struct Subject<V> {
-
-		internal Subject(Validator v) { this.v = v; }
+		internal Element(Validator v) { this.v = v; }
 		private Validator v;
 
-		public string Name { get => v._subject; private set => v._subject = value; }
+		public string Name { get => v._element; private set => v._element = value; }
 		public V Value { get => IsRightValueType ? v._value : default(V); internal set => v._value = value; }
-		public bool IsValid => v.SubjectIsValid;
+		public bool IsValid => v.ElementIsValid;
 		public bool PreviousTestHasPassed { get => v._passed; }
 		private bool IsRightValueType => v._value == null && default(V) == null || v._value.GetType() == typeof(V);
 		internal List<string> Errors => v._errors;
 
-		public Subject<V> SetValue(V value) { Value = value; return this; }
+		public Element<V> SetValue(V value) { Value = value; return this; }
 
-		public Subject<T> Cast<T>() {
-			var newSubject = new Subject<T>(v);
-			if (!v.SubjectIsValid) return newSubject;
+		public Element<T> Cast<T>() {
+			var newElement = new Element<T>(v);
+			if (!v.ElementIsValid) return newElement;
 			try {	v._value = (T)v._value;	}
 			catch { v._value = default(T); }
-			return newSubject;
+			return newElement;
 		}
 
-		public Subject<T> To<T>(Func<V, T> converter, string msg = null) {
-			var newSubject = new Subject<T>(v);
-			if (!v.SubjectIsValid) return newSubject;
+		public Element<T> To<T>(Func<V, T> converter, string msg = null) {
+			var newElement = new Element<T>(v);
+			if (!v.ElementIsValid) return newElement;
 			try { v._value = converter(v._value); }
 			catch (Exception ex) {
 				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
 				v.AddLog(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._value = default(T);
 			}
-			return newSubject;
+			return newElement;
 		}
 
-		public Subject<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
-			var newSubject = new Subject<T>(v);
-			if (!v.SubjectIsValid) return newSubject;
+		public Element<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
+			var newElement = new Element<T>(v);
+			if (!v.ElementIsValid) return newElement;
 			try { v._value = converter(v._value, supplement); }
 			catch (Exception ex) {
 				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
@@ -156,13 +156,13 @@ namespace Limcap.LightValidator {
 				v.AddLog(msg ?? DefaultConvertMsg<T>(exInfo));
 				v._value = default(S);
 			}
-			return newSubject;
+			return newElement;
 		}
 
 		static string DefaultConvertMsg<T>(string info) => $"Não é um valor válido para o tipo '{typeof(T).Name}' - [{info}]";
 
-		public Subject<V> Check(string failureMessage, ValidationTest<V> test) {
-			if (!v.SubjectIsValid) return this;
+		public Element<V> Check(string failureMessage, ValidationTest<V> test) {
+			if (!v.ElementIsValid) return this;
 			try {
 				var success = test(v._value);
 				if (!success) v.AddLog(failureMessage);
@@ -175,8 +175,8 @@ namespace Limcap.LightValidator {
 			return this;
 		}
 
-		public Subject<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
-			if (!v.SubjectIsValid) return this;
+		public Element<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
+			if (!v.ElementIsValid) return this;
 			try {
 				var success = test(v._value, testArg);
 				if (!success) v.AddLog(failureMessage);
@@ -189,14 +189,14 @@ namespace Limcap.LightValidator {
 			return this;
 		}
 
-		public Subject<V> Check(string failureMessage, bool test) {
-			if (!v.SubjectIsValid) return this;
+		public Element<V> Check(string failureMessage, bool test) {
+			if (!v.ElementIsValid) return this;
 			v._passed = test;
 			if (!test) v.AddLog(failureMessage);
 			return this;
 		}
 
-		public Subject<V> Check(bool test) => Check("Valor inválido", test);
+		public Element<V> Check(bool test) => Check("Valor inválido", test);
 	}
 
 
@@ -206,13 +206,13 @@ namespace Limcap.LightValidator {
 
 	[DebuggerDisplay("{DD(), nq}")]
 	public struct Log {
-		public Log(string subject, string description) { Subject = subject; Description = description; }
+		public Log(string element, string description) { Element = element; Description = description; }
 
-		public readonly string Subject;
+		public readonly string Element;
 		public readonly string Description;
 		#if DEBUG
 		private string DD() {
-			var str1 = Subject is null ? "[No Subject]" : $"\"{Subject}\"";
+			var str1 = Element is null ? "[No Element]" : $"\"{Element}\"";
 			var str2 = Description is null ? $"[No Description]" : $"\"{Description}\"";
 			return $"{str1} ==> {str2}";
 		}
@@ -258,117 +258,117 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class Ext_Subject_Checks {
+	public static class Ext_Element_Checks {
 		// generic
-		public static Subject<V> IsNull<V>(this Subject<V> p, string msg = null) {
+		public static Element<V> IsNull<V>(this Element<V> p, string msg = null) {
 			p.Check(msg ?? $"Deve ser nulo", Tests.IsNull); return p;
 		}
-		public static Subject<V> IsNotNull<V>(this Subject<V> p, string msg = null) {
+		public static Element<V> IsNotNull<V>(this Element<V> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ser nulo", Tests.IsNotNull); return p;
 		}
-		public static Subject<V> IsIn<V>(this Subject<V> p, IEnumerable<V> options, string msg = null) {
+		public static Element<V> IsIn<V>(this Element<V> p, IEnumerable<V> options, string msg = null) {
 			p.Check(msg ?? $"Não é um valor válido", Tests.IsIn, options); return p;
 		}
-		public static Subject<V> IsIn<V>(this Subject<V> p, params V[] options) {
+		public static Element<V> IsIn<V>(this Element<V> p, params V[] options) {
 			p.Check($"Não é um opção válida", Tests.IsIn, options); return p;
 		}
 
 		// IEquatable
-		public static Subject<V> IsEquals<V>(this Subject<V> p, V value, string msg = null) where V : IEquatable<V> {
+		public static Element<V> IsEquals<V>(this Element<V> p, V value, string msg = null) where V : IEquatable<V> {
 			p.Check(msg ?? $"Deve ser {value}", Tests.IsEqual, value); return p;
 		}
 
 		// IComparable
-		public static Subject<V> IsAtLeast<V>(this Subject<V> p, V minValue, string msg = null) where V : IComparable<V> {
+		public static Element<V> IsAtLeast<V>(this Element<V> p, V minValue, string msg = null) where V : IComparable<V> {
 			p.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.IsAtLeast, minValue); return p;
 		}
-		public static Subject<V> IsAtMost<V>(this Subject<V> p, V maxValue, string msg = null) where V : IComparable<V> {
+		public static Element<V> IsAtMost<V>(this Element<V> p, V maxValue, string msg = null) where V : IComparable<V> {
 			p.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.IsAtMost, maxValue); return p;
 		}
-		public static Subject<V> Is<V>(this Subject<V> p, V value, string msg = null) where V : IComparable<V> {
+		public static Element<V> Is<V>(this Element<V> p, V value, string msg = null) where V : IComparable<V> {
 			p.Check(msg ?? $"Deve ser exatamente {value}", Tests.IsExactly, value); return p;
 		}
 
 		// IEnumerable
-		public static Subject<IEnumerable<V>> IsEmpty<V>(this Subject<IEnumerable<V>> p, string msg = null) {
+		public static Element<IEnumerable<V>> IsEmpty<V>(this Element<IEnumerable<V>> p, string msg = null) {
 			p.Check(msg ?? $"Deve ficar vazio", Tests.IsEmpty); return p;
 		}
-		public static Subject<IEnumerable<V>> IsNotEmpty<V>(this Subject<IEnumerable<V>> p, string msg = null) {
+		public static Element<IEnumerable<V>> IsNotEmpty<V>(this Element<IEnumerable<V>> p, string msg = null) {
 			p.Check(msg ?? $"Não pode ficar vazio", Tests.IsNotEmpty); return p;
 		}
-		public static Subject<IEnumerable<V>> HasLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
+		public static Element<IEnumerable<V>> HasLength<V>(this Element<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.IsLength, length); return p;
 		}
-		public static Subject<IEnumerable<V>> HasMinLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
+		public static Element<IEnumerable<V>> HasMinLength<V>(this Element<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.IsMinLength, length); return p;
 		}
-		public static Subject<IEnumerable<V>> HasMaxLength<V>(this Subject<IEnumerable<V>> p, int length, string msg = null) {
+		public static Element<IEnumerable<V>> HasMaxLength<V>(this Element<IEnumerable<V>> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.IsMaxLength, length); return p;
 		}
 
 		// int
-		public static Subject<int> IsAtLeast(this Subject<int> p, int number, string msg = null) {
+		public static Element<int> IsAtLeast(this Element<int> p, int number, string msg = null) {
 			p.Check(msg ?? $"Não pode ser menor que {number}", Tests.IsAtLeast, number); return p;
 		}
-		public static Subject<int> IsAtMost(this Subject<int> p, int number, string msg = null) {
+		public static Element<int> IsAtMost(this Element<int> p, int number, string msg = null) {
 			p.Check(msg ?? $"Não pode ser maior que {number}", Tests.IsAtMost, number); return p;
 		}
-		public static Subject<int> Is(this Subject<int> p, int number, string msg = null) {
+		public static Element<int> Is(this Element<int> p, int number, string msg = null) {
 			p.Check(msg ?? $"Deve ser exatamente {number}", Tests.IsExactly, number); return p;
 		}
 
 		// string
-		public static Subject<string> IsEmpty(this Subject<string> p, string msg = null) {
+		public static Element<string> IsEmpty(this Element<string> p, string msg = null) {
 			p.Check(msg ?? $"Não deve ser preenchido", Tests.IsEmpty); return p;
 		}
-		public static Subject<string> IsNotEmpty(this Subject<string> p, string msg = null) {
+		public static Element<string> IsNotEmpty(this Element<string> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return p;
 		}
-		public static Subject<string> IsBlank(this Subject<string> p, string msg = null) {
+		public static Element<string> IsBlank(this Element<string> p, string msg = null) {
 			p.Check(msg ?? $"Deve ficar em branco", Tests.IsBlank); return p;
 		}
-		public static Subject<string> IsNotBlank(this Subject<string> p, string msg = null) {
+		public static Element<string> IsNotBlank(this Element<string> p, string msg = null) {
 			p.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return p;
 		}
-		public static Subject<string> HasLength(this Subject<string> p, int length, string msg = null) {
+		public static Element<string> HasLength(this Element<string> p, int length, string msg = null) {
 			p.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.IsLength, length); return p;
 		}
-		public static Subject<string> HasMinLength(this Subject<string> p, int length, string msg = null) {
+		public static Element<string> HasMinLength(this Element<string> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.IsMinLength, length); return p;
 		}
-		public static Subject<string> HasMaxLength(this Subject<string> p, int length, string msg = null) {
+		public static Element<string> HasMaxLength(this Element<string> p, int length, string msg = null) {
 			p.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.IsMaxLength, length); return p;
 		}
-		public static Subject<string> IsMatch(this Subject<string> p, string pattern, string msg = null) {
+		public static Element<string> IsMatch(this Element<string> p, string pattern, string msg = null) {
 			p.Check(msg ?? "Não é um valor aceito", Tests.IsMatch, pattern); return p;
 		}
-		public static Subject<string> IsEmail(this Subject<string> p, string msg = null) {
+		public static Element<string> IsEmail(this Element<string> p, string msg = null) {
 			p.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return p;
 		}
-		public static Subject<string> IsDigitsOnly(this Subject<string> p, string msg = null) {
+		public static Element<string> IsDigitsOnly(this Element<string> p, string msg = null) {
 			p.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return p;
 		}
 	}
 
 
 
-	public static class Ext_Subject_Numeric {
-		public static Ps AsString<T>(this Subject<T> p) => p.To(o => o.ToString());
-		public static Subject<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
-		public static Subject<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
-		public static Subject<ushort> AsUshort(this Ps p) => _to(p, o => ushort.Parse(o));
-		public static Subject<int> AsInt(this Ps p) => _to(p, o => int.Parse(o));
-		public static Subject<uint> AsUint(this Ps p) => _to(p, o => uint.Parse(o));
-		public static Subject<long> AsLong(this Ps p) => _to(p, o => long.Parse(o));
-		public static Subject<ulong> AsUlong(this Ps p) => _to(p, o => ulong.Parse(o));
-		public static Subject<float> AsFloat(this Ps p) => _to(p, o => float.Parse(o));
-		public static Subject<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
-		public static Subject<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
-		public static Subject<DateTime> AsDateTime(this Ps p, string format) => p.To(_parseDT, format);
-		public static Subject<DateTime> AsDate(this Ps p) => p.To(o => o.ToDate(), "Não é uma data válida");
-		public static Subject<DateTime?> AsNullableDate(this Ps p) => p.To(o => o.ToNullableDate(), "Não é uma data válida");
+	public static class Ext_Element_Numeric {
+		public static Ps AsString<T>(this Element<T> p) => p.To(o => o.ToString());
+		public static Element<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
+		public static Element<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
+		public static Element<ushort> AsUshort(this Ps p) => _to(p, o => ushort.Parse(o));
+		public static Element<int> AsInt(this Ps p) => _to(p, o => int.Parse(o));
+		public static Element<uint> AsUint(this Ps p) => _to(p, o => uint.Parse(o));
+		public static Element<long> AsLong(this Ps p) => _to(p, o => long.Parse(o));
+		public static Element<ulong> AsUlong(this Ps p) => _to(p, o => ulong.Parse(o));
+		public static Element<float> AsFloat(this Ps p) => _to(p, o => float.Parse(o));
+		public static Element<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
+		public static Element<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
+		public static Element<DateTime> AsDateTime(this Ps p, string format) => p.To(_parseDT, format);
+		public static Element<DateTime> AsDate(this Ps p) => p.To(o => o.ToDate(), "Não é uma data válida");
+		public static Element<DateTime?> AsNullableDate(this Ps p) => p.To(o => o.ToNullableDate(), "Não é uma data válida");
 
-		static Subject<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
+		static Element<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
 		static string _msgN<N>() => $"Não é um número válido do tipo '{typeof(N).Name}'";
 		static DateTime _parseDT(string v, string f) => DateTime.ParseExact(v, f, CultureInfo.CurrentCulture);
 	}
@@ -378,8 +378,8 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class Ext_Subject {
-		public static Subject<T> GetCurrentValue<T>(this Subject<T> p, out T variable) { variable = p.Value; return p; }
+	public static class Ext_Element {
+		public static Element<T> GetCurrentValue<T>(this Element<T> p, out T variable) { variable = p.Value; return p; }
 	}
 
 
@@ -387,7 +387,7 @@ namespace Limcap.LightValidator {
 
 
 
-	public static class Ext_Subject_String {
+	public static class Ext_Element_String {
 		public static Ps Trim(this Ps p, char c = (char)0) { p.Value = c == 0 ? p.Value.Trim() : p.Value.Trim(c); return p; }
 		public static Ps ToLower(this Ps p) { p.Value = p.Value?.ToLower(); return p; }
 		public static Ps ToUpper(this Ps p) { p.Value = p.Value?.ToUpper(); return p; }
