@@ -39,8 +39,7 @@ namespace Limcap.LightValidator {
 		internal void AddLog(string msg) {
 			if (_errors.Any()) return;
 			_errors.Add(msg);
-			var title = _scope != null ? $"{_scope}, {_element}" : _element;
-			_report.Add(title, msg);
+			_report.Add(_scope, _element, msg);
 		}
 	}
 
@@ -102,10 +101,12 @@ namespace Limcap.LightValidator {
 		public void Include(Report report) { Include(null, report); }
 		public void Include(string scope, Report report) { foreach (var log in report.Logs) Add(scope, log); }
 		public void Add(Log log) { Add(null, log); }
-		public void Add(string element, string message) { Logs.Add(new Log(element, message)); }
+		public void Add(string element, string message) { Logs.Add(new Log(null, element, message)); }
+		public void Add(string scope, string element, string message) { Logs.Add(new Log(scope, element, message)); }
 		public void Add(string scope, Log log) {
-			var element = scope != null ? $"{scope}, {log.Element}" : log.Element;
-			if (log.Message != null && log.Message.Any()) Logs.Add(new Log(element, log.Message));
+			if (log.Message == null || !log.Message.Any()) return;
+			scope = scope == null ? log.Scope : $"{scope}, {log.Scope}";
+			Logs.Add(new Log(scope, log.Element, log.Message));
 		}
 	}
 
@@ -207,15 +208,18 @@ namespace Limcap.LightValidator {
 
 	[DebuggerDisplay("{DD(), nq}")]
 	public struct Log {
-		public Log(string element, string message) { Element = element; Message = message; }
-
+		public Log(string scope, string element, string message) {
+			Scope = scope;  Element = element; Message = message;
+		}
+		public readonly string Scope;
 		public readonly string Element;
 		public readonly string Message;
 		#if DEBUG
 		private string DD() {
-			var str1 = Element is null ? "[No Element]" : $"\"{Element}\"";
-			var str2 = Message is null ? $"[No Description]" : $"\"{Message}\"";
-			return $"{str1} ==> {str2}";
+			var str1 = Scope is null ? "[no scope]" : $"\"{Scope}\",";
+			var str2 = Element is null ? "[no element]" : $"\"{Element}\"";
+			var str3 = Message is null ? $"[no message]" : $"\"{Message}\"";
+			return $"{str1} {str2} ==> {str3}";
 		}
 		#endif
 	}
