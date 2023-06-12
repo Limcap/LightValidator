@@ -126,7 +126,9 @@ namespace Limcap.LightValidator {
 		private bool IsRightValueType => v._value == null && default(V) == null || v._value.GetType() == typeof(V);
 		internal List<string> Errors => v._errors;
 
-		public Element<V> SetValue(V value) { Value = value; return this; }
+		public Element<T> NewValue<T>(T Value) { v._value = Value; return new Element<T>(v); }
+		public Element<V> NewValue(V value) { Value = value; return this; }
+		public Element<V> AddLog(string message) { v.AddLog(message); return this; }
 
 		public Element<T> Cast<T>() {
 			var newElement = new Element<T>(v);
