@@ -413,6 +413,10 @@ namespace Limcap.LightValidator {
 
 
 	public static class Ext_String {
+		public static bool IsIn(this string str, params string[] options) {
+			return options.Contains(str);
+		}
+
 		public static string RemoveChars(this string str, string chars) {
 			return Regex.Replace(str, $"[{Regex.Escape(chars)}]", "");
 		}
