@@ -213,9 +213,11 @@ namespace Limcap.LightValidator {
 		public Log(string scope, string element, string message) {
 			Scope = scope;  Element = element; Message = message;
 		}
-		public readonly string Scope;
-		public readonly string Element;
-		public readonly string Message;
+
+		public string Scope { get; private set; }
+		public string Element { get; private set; }
+		public string Message { get; private set; }
+
 		#if DEBUG
 		private string DD() {
 			var str1 = Scope is null ? "[no scope]" : $"\"{Scope}\",";
