@@ -108,6 +108,14 @@ namespace Limcap.LightValidator {
 			scope = scope == null ? log.Scope : $"{scope}, {log.Scope}";
 			Logs.Add(new Log(scope, log.Element, log.Message));
 		}
+		public string ToJson() {
+			var sb = new StringBuilder();
+			sb.Append('{').Append(Environment.NewLine);
+			for (int i = 0; i < Logs.Count; i++)
+				sb.Append('\t').Append(_L[i].ToJson()).Append(Environment.NewLine);
+			sb.Append('}').Append(Environment.NewLine);
+			return sb.ToString();
+		}
 	}
 
 
@@ -226,6 +234,18 @@ namespace Limcap.LightValidator {
 			return $"{str1} {str2} ==> {str3}";
 		}
 		#endif
+
+		static Log() { SetJsonPropertyNames(); }
+
+		static string _s, _e, _m;
+
+		public static void SetJsonPropertyNames(string scope = null, string element = null, string message = null) {
+			_s = scope ?? "scope"; _e = element ?? "element"; _m = message ?? "message";
+		}
+
+		public string ToJson() {
+			return $@"{{""{_s}"": ""{Scope}"",""{_e}"": ""{Element}"",""{_m}"": ""{Message}""}}";
+		}
 	}
 
 
