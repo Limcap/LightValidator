@@ -108,14 +108,7 @@ namespace Limcap.LightValidator {
 			scope = scope == null ? log.Scope : $"{scope}, {log.Scope}";
 			Logs.Add(new Log(scope, log.Element, log.Message));
 		}
-		public string ToJson() {
-			var sb = new StringBuilder();
-			sb.Append('{').Append(Environment.NewLine);
-			for (int i = 0; i < Logs.Count; i++)
-				sb.Append('\t').Append(_L[i].ToJson()).Append(Environment.NewLine);
-			sb.Append('}').Append(Environment.NewLine);
-			return sb.ToString();
-		}
+		public string ToJson() { return _L.ToJson(); }
 	}
 
 
@@ -245,6 +238,21 @@ namespace Limcap.LightValidator {
 
 		public string ToJson() {
 			return $@"{{""{_s}"": ""{Scope}"",""{_e}"": ""{Element}"",""{_m}"": ""{Message}""}}";
+		}
+	}
+
+
+
+
+
+	public static class Ext_Log {
+		public static string ToJson(this IEnumerable<Log> logs) {
+			var sb = new StringBuilder();
+			sb.Append('[').Append(Environment.NewLine);
+			foreach (var log in logs) sb.Append('\t').Append(log.ToJson()).Append(',').Append(Environment.NewLine);
+			if (logs.Any()) { sb.Length -= 2; sb.Append(Environment.NewLine); }
+			sb.Append(']').Append(Environment.NewLine);
+			return sb.ToString();
 		}
 	}
 
