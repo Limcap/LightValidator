@@ -1,8 +1,48 @@
-﻿### Ver 0.4.0
+﻿### Ver 0.5.1
+- Added feature to convert Report and Logs to Json: (Report.ToJson(), Log.ToJson(),
+  Log.SetJsonPropertyNames())
+- Rename Element.SetValue to Element.NewValue and add overloads
+- Add Element extension IsDefinedInEnum
+
+### Ver 0.5.0
+- Bugfixes
+- Ranamed Subject class to Element
+- New concept and feature Report: each failed validation test creates a Log in the Validator's Report
+- Created new Scope concept and feature. When validation, you can define a scope, and when a Log is 
+  created in the Report it will have the Scope, the Element name and the Message. 
+- Improvements in Report class
+
+### Ver 0.4.0
+- Bugfixes
+- Rename Input class to Subject
+- Removed object parameter from Validator contructor. Was used to define the object beeing validated
+  This concept has been removed
+- Removed Equalizer feature. Any amends to values should be done externally
+- Removed SkipNextCheck feature. (Disaproved) 
+- Rename ValidationResult class to Log
+- Improved the Subject.Cast feature
+- New string conversions (ToDate)
+- New FieldInfo extensions (IsConst, IsReadOnly)
+- New Type extensions (GetConst)
+- New EmailAddress struct
+- new Test added: IsNull, IsEmpty, IsBlank
+- Renamed Subject.LocaVar to Subject.GetCurrentValue
+- Renamed Suject.Alter to Subject.SetValue
 
 ### Ver 0.3.3
+- Fix property and variable names
+- Rename Param class to Input
+- New extension and conversion methods
+- New Input class function to alter value (Input.Alter)
+- New Input class function to export current value (Input.LovalVar)
+- New string methods (Crop, Replace, RemoveChars)
+- New feature SkipNextChecks to skip every next check if condition applies
+- New feature SkipIfBlank to skip every next check if value is blank
 
 ### Ver 0.3.2
+- Bugfixes and a few improvements in Tests
+- Fix typos
+- Fix method signature
 
 ### Ver 0.3.1
 - Classes were renamed for the better
