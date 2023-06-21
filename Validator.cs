@@ -382,8 +382,11 @@ namespace Limcap.LightValidator {
 		public static Element<string> IsEmail(this Element<string> p, string msg = null) {
 			p.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return p;
 		}
-		public static Element<string> IsDigitsOnly(this Element<string> p, string msg = null) {
-			p.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return p;
+		public static Element<T> IsDefinedInEnum<T>(this Element<T> p, string msg = null)
+		where T : IComparable, IFormattable, IConvertible {
+			if (!typeof(T).IsEnum) p.Check(false);
+			else p.Check(msg?? "Valor não-reconhecido", x => Enum.IsDefined(typeof(T), x));
+			return p;
 		}
 	}
 
