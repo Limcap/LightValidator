@@ -1,77 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Xml.Schema;
+using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
+using Ps = Limcap.LightValidator.Element<string>;
 
 namespace Limcap.LightValidator {
 
 	/// <summary>
-	///	Objeto para validação de qualquer outro objeto e seus membros.
+	///	Provides validation for any object and its members.
 	/// </summary>
-	/// <changelog>
-	/// Validator 0.2.0.3:
-	/// - Validator e validation foram fundidos em um so objeto.
-	/// - A classe Field foi absorvida pela Validator para aumentar a performace, pois assim não será necessário
-	///   criar um novo objeto no heap a cada chamada da função Field;
-	/// - Novo struct Tester ocupou lugar do antigo Field. Ele possui um único membro que é uma referência para
-	///   o próprio Validator de forma a permitir que o struct seja retornado no diversas vezes durante a validação
-	///   sem ocupar muito espaço do stack e aumentando a performance.
-	/// - Novo ValidationText[V,C] permite que faça-se testes com parâmetros possam ser predefinidos em vez de ser delegates gerados em runtime
-	/// </changelog>
 	public class Validator {
-		public Validator( dynamic obj ) {
-			Object = obj;
-		}
+		public Validator(string scope = null) { Scope = scope; }
 
+		internal string _scope;
+		internal string _element;
+		internal dynamic _value;
+		internal bool _passed;
+		internal readonly List<string> _errors = new List<string>();
+		internal readonly Report _report = new Report();
 
+		public string Scope { get => _scope; set => _scope = value; }
+		public string Element { get => _element; set => _element = value; }
+		public List<string> ElementErrors { get => _errors; }
+		public Report Report => _report;
+		public bool ElementIsValid { get => !_errors.Any(); }
 
+		public void Reset() { Clear(); _report.Clear(); }
+		public void Clear() { _errors.Clear(); _element = null; _value = null; _passed = false; }
+		public ValidationScope NewScope(string name) => new ValidationScope(name, this);
+		public Element<dynamic> NewElement(string name) => Ext_Validator.NewElement<dynamic>(this, name, null);
+		public Element<string> NewElement(string name, string value) => Ext_Validator.NewElement(this, name, value);
+		public Element<IEnumerable<V>> NewElement<V>(string name, IEnumerable<V> value) => Ext_Validator.NewElement(this, name, value);
 
-		public dynamic Object { get; private set; }
-		public List<ValidationResult> Results { get; private set; }
-		public string CurrentFieldName { get; internal set; }
-		public dynamic CurrentFieldValue { get; internal set; }
-		public bool CurrentFieldIsValid { get; internal set; }
-		public ValidationResult CurrentFieldResult { get; internal set; }
-		public string CurrentFieldLastResult => CurrentFieldResult.ErrorMessages.LastOrDefault();
-
-
-
-
-
-		public void Reset( dynamic obj = null ) {
-			Object = obj;
-			Results = null;
-			CurrentFieldName = null;
-			CurrentFieldValue = null;
-			CurrentFieldIsValid = false;
-			CurrentFieldResult = new ValidationResult();
-		}
-
-
-
-
-		internal void InitializeResults() {
-			Results = Results ?? new List<ValidationResult>();
-		}
-
-
-
-
-		public Tester<V> Field<V>( string name, V value ) {
-			CurrentFieldName = name;
-			CurrentFieldValue = value;
-			CurrentFieldIsValid = true;
-			CurrentFieldResult = new ValidationResult();
-			return new Tester<V>(this);
-		}
-
-
-
-
-		internal void RemoveEmptyResults() {
-			Results?.RemoveAll(x => x.ErrorMessages.Count == 0);
+		internal void AddLog(string msg) {
+			if (_errors.Any()) return;
+			_errors.Add(msg);
+			_report.Add(_scope, _element, msg);
 		}
 	}
 
@@ -80,73 +48,160 @@ namespace Limcap.LightValidator {
 
 
 
+	public static class Ext_Validator {
+		// Esse nétodo precisa ser de extensão senão ele tem precedência na resolução de overloading
+		// do linter sobre o NewElement<IEnumerable<V>>, o que faz com que as chamadas do método NewElement com
+		// um value que seja IEnumerable seja identificado incorretamente pelo linter, e então as chamadas
+		// para os métodos de extensão de NewElement<IEnumerable<V>> ficam marcados como erro no linter.
+		// Sendo extensão, ele cai na hierarquia de resolução resolvendo o problema.
+		public static Element<V> NewElement<V>(this Validator v, string name, V value) {
+			v._element = name;
+			v._value = value;
+			v._passed = false;
+			v._errors.Clear();
+			return new Element<V>(v);
+		}
+	}
 
-	public struct Tester<V> {
-		internal Tester(Validator v) { this.v=v; }
 
-		
+
+
+
+
+	public struct ValidationScope {
+		public ValidationScope(string scope, Validator v) {
+			v._scope = scope;
+			V = v;
+			v.Clear();
+		}
+		internal Validator V;
+
+		public string Name { get => V._scope; }
+		//public string ElementName { get => V._element; set => V._element = value; }
+		//public List<string> ElementErrors => V._errors;
+		//public bool ElementIsValid => V.ElementIsValid;
+
+		public Element<dynamic> NewElement(string name) => V.NewElement(name);
+		public Element<string> NewElement(string name, string value) => V.NewElement(name, value);
+		public Element<IEnumerable<T>> NewElement<T>(string name, IEnumerable<T> value) => V.NewElement(name, value);
+		public Element<T> NewElement<T>(string name, T value) => V.NewElement(name, value);
+	}
+
+
+
+
+
+
+	public class Report {
+		private List<Log> _L = new List<Log>();
+		public List<Log> Logs { get => _L; }
+		public bool HasErrors { get => Logs?.Any() ?? false; }
+
+		public void Clear() { Logs.Clear(); }
+		public void Include(Report report) { Include(null, report); }
+		public void Include(string scope, Report report) { foreach (var log in report.Logs) Add(scope, log); }
+		public void Add(Log log) { Add(null, log); }
+		public void Add(string element, string message) { Logs.Add(new Log(null, element, message)); }
+		public void Add(string scope, string element, string message) { Logs.Add(new Log(scope, element, message)); }
+		public void Add(string scope, Log log) {
+			if (log.Message == null || !log.Message.Any()) return;
+			scope = scope == null ? log.Scope : $"{scope}, {log.Scope}";
+			Logs.Add(new Log(scope, log.Element, log.Message));
+		}
+		public string ToJson() { return _L.ToJson(); }
+	}
+
+
+
+
+
+	// outros nomes: target, item, article, unit, piece, scope, element
+	public struct Element<V> {
+		internal Element(Validator v) { this.v = v; }
 		private Validator v;
 
+		public string Name { get => v._element; private set => v._element = value; }
+		public V Value { get => IsRightValueType ? v._value : default(V); internal set => v._value = value; }
+		public bool IsValid => v.ElementIsValid;
+		public bool PreviousTestHasPassed { get => v._passed; }
+		private bool IsRightValueType => v._value == null && default(V) == null || v._value.GetType() == typeof(V);
+		internal List<string> Errors => v._errors;
 
-		public Tester<V> Test( string msg, ValidationTest<V> test ) {
+		public Element<T> NewValue<T>(T Value) { v._value = Value; return new Element<T>(v); }
+		public Element<V> NewValue(V value) { Value = value; return this; }
+		public Element<V> AddLog(string message) { v.AddLog(message); return this; }
+
+		public Element<T> Cast<T>() {
+			var newElement = new Element<T>(v);
+			if (!v.ElementIsValid) return newElement;
+			try {	v._value = (T)v._value;	}
+			catch { v._value = default(T); }
+			return newElement;
+		}
+
+		public Element<T> To<T>(Func<V, T> converter, string msg = null) {
+			var newElement = new Element<T>(v);
+			if (!v.ElementIsValid) return newElement;
+			try { v._value = converter(v._value); }
+			catch (Exception ex) {
+				var exInfo = $"[{ex.GetType().Name}: {ex.Message}]";
+				v.AddLog(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._value = default(T);
+			}
+			return newElement;
+		}
+
+		public Element<T> To<T, S>(Func<V, S, T> converter, S supplement, string msg = null) {
+			var newElement = new Element<T>(v);
+			if (!v.ElementIsValid) return newElement;
+			try { v._value = converter(v._value, supplement); }
+			catch (Exception ex) {
+				var exInfo = $"{ex.GetType().Name}: {ex.Message}";
+				//v.AddErrorMessage(msg ?? DefaultConvertMsg<T>(exInfo));
+				v.AddLog(msg ?? DefaultConvertMsg<T>(exInfo));
+				v._value = default(S);
+			}
+			return newElement;
+		}
+
+		static string DefaultConvertMsg<T>(string info) => $"Não é um valor válido para o tipo '{typeof(T).Name}' - [{info}]";
+
+		public Element<V> Check(string failureMessage, ValidationTest<V> test) {
+			if (!v.ElementIsValid) return this;
 			try {
-				var success = test(v.CurrentFieldValue);
-				if (!success) AddErrorMessage(msg);
+				var success = test(v._value);
+				if (!success) v.AddLog(failureMessage);
+				v._passed = success;
 			}
 			catch (Exception ex) {
-				AddErrorMessage("[Exception] " + ex.Message);
+				v.AddLog("[Exception] " + ex.Message);
+				v._passed = false;
 			}
 			return this;
 		}
 
-
-
-
-		public Tester<V> Test<C>( string msg, ValidationTest<V,C> test, C targetValue ) {
+		public Element<V> Check<A>(string failureMessage, ValidationTest<V, A> test, A testArg) {
+			if (!v.ElementIsValid) return this;
 			try {
-				var success = test(v.CurrentFieldValue, targetValue);
-				if (!success) AddErrorMessage(msg);
+				var success = test(v._value, testArg);
+				if (!success) v.AddLog(failureMessage);
+				v._passed = success;
 			}
 			catch (Exception ex) {
-				AddErrorMessage("[Exception] " + ex.Message);
+				v.AddLog("[Exception] " + ex.Message);
+				v._passed = false;
 			}
 			return this;
 		}
 
-
-
-
-		public Tester<V> Test( string msg, bool success ) {
-			if (!success) AddErrorMessage(msg);
+		public Element<V> Check(string failureMessage, bool test) {
+			if (!v.ElementIsValid) return this;
+			v._passed = test;
+			if (!test) v.AddLog(failureMessage);
 			return this;
 		}
 
-
-
-
-		public Tester<V> Test( string msg, ValidationRule<V> rule ) {
-			try {
-				var success = rule.Test(v.CurrentFieldValue);
-				if (!success) AddErrorMessage(rule.FailureMessage);
-			}
-			catch (Exception ex) {
-				AddErrorMessage("[Exception] " + ex.Message);
-			}
-			return this;
-		}
-
-
-
-
-		public void AddErrorMessage( string msg ) {
-			if (v.CurrentFieldIsValid) {
-				v.CurrentFieldResult = new ValidationResult(v.CurrentFieldName);
-				v.InitializeResults();
-				v.Results.Add(v.CurrentFieldResult);
-				v.CurrentFieldIsValid = false;
-			}
-			v.CurrentFieldResult.ErrorMessages.Add(msg);
-		}
+		public Element<V> Check(bool test) => Check("Valor inválido", test);
 	}
 
 
@@ -154,70 +209,50 @@ namespace Limcap.LightValidator {
 
 
 
-	[DebuggerDisplay("{DD(), nq")]
-	public struct ValidationResult {
-		public ValidationResult( string fieldName ) { FieldName=fieldName; ErrorMessages = new List<string>(); }
-		public readonly string FieldName;
-		public readonly List<string> ErrorMessages;
+	[DebuggerDisplay("{DD(), nq}")]
+	public struct Log {
+		public Log(string scope, string element, string message) {
+			Scope = scope;  Element = element; Message = message;
+		}
+
+		public string Scope { get; private set; }
+		public string Element { get; private set; }
+		public string Message { get; private set; }
+
 		#if DEBUG
-		public string DD() => $"{nameof(FieldName)}=\"{FieldName}\", {nameof(ErrorMessages)}.Count={ErrorMessages.Count}";
+		private string DD() {
+			var str1 = Scope is null ? "[no scope]" : $"\"{Scope}\",";
+			var str2 = Element is null ? "[no element]" : $"\"{Element}\"";
+			var str3 = Message is null ? $"[no message]" : $"\"{Message}\"";
+			return $"{str1} {str2} ==> {str3}";
+		}
 		#endif
+
+		static Log() { SetJsonPropertyNames(); }
+
+		static string _s, _e, _m;
+
+		public static void SetJsonPropertyNames(string scope = null, string element = null, string message = null) {
+			_s = scope ?? "scope"; _e = element ?? "element"; _m = message ?? "message";
+		}
+
+		public string ToJson() {
+			return $@"{{""{_s}"": ""{Scope}"",""{_e}"": ""{Element}"",""{_m}"": ""{Message}""}}";
+		}
 	}
 
 
 
 
 
-
-
-
-	public struct ValidationRule<V> {
-		public ValidationRule( string failureMessage, ValidationTest<V> test ) {
-			Test = test;
-			FailureMessage = failureMessage;
-		}
-		public ValidationTest<V> Test;
-		public string FailureMessage;
-	}
-
-
-
-
-
-
-
-
-	public static class TesterExtensions {
-		public static class Tests {
-			public static readonly ValidationTest<object> NotNull = x => x != null;
-			public static readonly ValidationTest<string> NotEmpty = x => !string.IsNullOrWhiteSpace(x);
-			public static readonly ValidationTest<string, int> MaxLength = (x,t) => x.Length <= t;
-			public static readonly ValidationTest<string, int> MinLength = (x,t) => x.Length >= t;
-			public static readonly ValidationTest<decimal, decimal> Max = (x,t) => x <= t;
-			public static readonly ValidationTest<decimal, decimal> Min = (x,t) => x >= t;
-			public static readonly ValidationTest<decimal, decimal> Exact = (x,t) => x == t;
-		}
-
-		public static Tester<object> NotNull( this Tester<object> field, string msg = null ) {
-			field.Test(msg??$"Não pode ser nulo", Tests.NotNull); return field;
-		}
-		public static Tester<string> NotEmpty( this Tester<string> field, string msg = null ) {
-			field.Test(msg??$"Não está preenchido", Tests.NotEmpty); return field;
-		}
-		public static Tester<string> MaxLength( this Tester<string> field, int target, string msg = null ) {
-			field.Test(msg??$"Não pode ser maior que {target} caracteres", Tests.MaxLength, target); return field;
-		}
-		public static Tester<string> MinLength( this Tester<string> field, int target, string msg = null ) {
-			field.Test(msg??$"Não pode ser menor que {target} caracteres", Tests.MinLength, target); return field;
-		}
-		public static Tester<decimal> Max( this Tester<decimal> field, decimal target, string msg = null ) {
-			field.Test(msg??$"Não pode ser maior que {target}", Tests.Max, target); return field;
-		}
-		public static Tester<decimal> Min( this Tester<decimal> field, decimal target, string msg = null ) {
-			field.Test(msg??$"Não pode ser menor que {target}", Tests.Min, target); return field;
-		}
-		public static Tester<decimal> Exact( this Tester<decimal> field, decimal target, string msg = null ) {
-			field.Test(msg??$"Deve ser {target}", Tests.Exact, target); return field;
+	public static class Ext_Log {
+		public static string ToJson(this IEnumerable<Log> logs) {
+			var sb = new StringBuilder();
+			sb.Append('[').Append(Environment.NewLine);
+			foreach (var log in logs) sb.Append('\t').Append(log.ToJson()).Append(',').Append(Environment.NewLine);
+			if (logs.Any()) { sb.Length -= 2; sb.Append(Environment.NewLine); }
+			sb.Append(']').Append(Environment.NewLine);
+			return sb.ToString();
 		}
 	}
 
@@ -226,10 +261,331 @@ namespace Limcap.LightValidator {
 
 
 
+	public delegate bool ValidationTest<V>(V value);
+	public delegate bool ValidationTest<V, R>(V value, R allowed = default);
+	public delegate void ValidationScript(Validator v);
 
 
-	public delegate bool ValidationTest<V>( V value );
-	public delegate bool ValidationTest<V,C>( V value, C value2 );
-	//public delegate string ValidationNamer( string originalName, dynamic validationSubject );
-	public delegate void ValidationScript( Validator v );
+
+
+
+
+	internal static class Tests {
+		public static bool IsNull<V>(V x) => x == null;
+		public static bool IsNotNull<V>(V x) => x != null;
+		public static bool IsEmpty<V>(IEnumerable<V> x) => x == null || x.Count() > 0;
+		public static bool IsNotEmpty<V>(IEnumerable<V> x) => x != null && x.Count() > 0;
+		public static bool IsBlank(string x) => string.IsNullOrWhiteSpace(x);
+		public static bool IsNotBlank(string x) => !string.IsNullOrWhiteSpace(x);
+		public static bool IsMatch(string x, string a) => x != null && Regex.IsMatch(x, a);
+		public static bool IsIn<V>(V x, IEnumerable<V> a) => x != null && a.Contains(x);
+		public static bool IsEqual<V>(V x, V a) where V : IEquatable<V> => x != null && x.Equals(a);
+		public static bool IsMinLength<V>(IEnumerable<V> x, int t) => x != null && x.Count() >= t;
+		public static bool IsMaxLength<V>(IEnumerable<V> x, int t) => x == null || x.Count() <= t;
+		public static bool IsLength<V>(IEnumerable<V> x, int t) => x != null && x.Count() == t;
+		public static bool IsAtLeast<V>(V x, V t) where V : IComparable<V> => x != null && x.CompareTo(t) >= 0;
+		public static bool IsAtMost<V>(V x, V t) where V : IComparable<V> => x == null || x.CompareTo(t) <= 0;
+		public static bool IsExactly<V>(V x, V t) where V : IComparable<V> => x != null && x.CompareTo(t) == 0;
+		public static bool IsEmail(string x) => Regex.IsMatch(x, @"^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$");
+		public static bool IsDigitsOnly(string x) => x != null && x.All(y => char.IsDigit(y));
+	}
+
+
+
+
+
+
+	public static class Ext_Element_Checks {
+		// generic
+		public static Element<V> IsNull<V>(this Element<V> e, string msg = null) {
+			e.Check(msg ?? $"Deve ser nulo", Tests.IsNull); return e;
+		}
+		public static Element<V> IsNotNull<V>(this Element<V> e, string msg = null) {
+			e.Check(msg ?? $"Não pode ser nulo", Tests.IsNotNull); return e;
+		}
+		public static Element<V> IsIn<V>(this Element<V> e, IEnumerable<V> options, string msg = null) {
+			e.Check(msg ?? $"Não é um valor válido", Tests.IsIn, options); return e;
+		}
+		public static Element<V> IsIn<V>(this Element<V> e, params V[] options) {
+			e.Check($"Não é um opção válida", Tests.IsIn, options); return e;
+		}
+
+		// IEquatable
+		public static Element<V> IsEquals<V>(this Element<V> e, V value, string msg = null) where V : IEquatable<V> {
+			e.Check(msg ?? $"Deve ser {value}", Tests.IsEqual, value); return e;
+		}
+
+		// IComparable
+		public static Element<V> IsAtLeast<V>(this Element<V> e, V minValue, string msg = null) where V : IComparable<V> {
+			e.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.IsAtLeast, minValue); return e;
+		}
+		public static Element<V> IsAtMost<V>(this Element<V> e, V maxValue, string msg = null) where V : IComparable<V> {
+			e.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.IsAtMost, maxValue); return e;
+		}
+		public static Element<V> Is<V>(this Element<V> e, V value, string msg = null) where V : IComparable<V> {
+			e.Check(msg ?? $"Deve ser exatamente {value}", Tests.IsExactly, value); return e;
+		}
+
+		// IEnumerable
+		public static Element<IEnumerable<V>> IsEmpty<V>(this Element<IEnumerable<V>> e, string msg = null) {
+			e.Check(msg ?? $"Deve ficar vazio", Tests.IsEmpty); return e;
+		}
+		public static Element<IEnumerable<V>> IsNotEmpty<V>(this Element<IEnumerable<V>> e, string msg = null) {
+			e.Check(msg ?? $"Não pode ficar vazio", Tests.IsNotEmpty); return e;
+		}
+		public static Element<IEnumerable<V>> HasLength<V>(this Element<IEnumerable<V>> e, int length, string msg = null) {
+			e.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.IsLength, length); return e;
+		}
+		public static Element<IEnumerable<V>> HasMinLength<V>(this Element<IEnumerable<V>> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.IsMinLength, length); return e;
+		}
+		public static Element<IEnumerable<V>> HasMaxLength<V>(this Element<IEnumerable<V>> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.IsMaxLength, length); return e;
+		}
+
+		// int
+		public static Element<int> IsAtLeast(this Element<int> e, int number, string msg = null) {
+			e.Check(msg ?? $"Não pode ser menor que {number}", Tests.IsAtLeast, number); return e;
+		}
+		public static Element<int> IsAtMost(this Element<int> e, int number, string msg = null) {
+			e.Check(msg ?? $"Não pode ser maior que {number}", Tests.IsAtMost, number); return e;
+		}
+		public static Element<int> Is(this Element<int> e, int number, string msg = null) {
+			e.Check(msg ?? $"Deve ser exatamente {number}", Tests.IsExactly, number); return e;
+		}
+
+		// string
+		public static Element<string> IsEmpty(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Não deve ser preenchido", Tests.IsEmpty); return e;
+		}
+		public static Element<string> IsNotEmpty(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return e;
+		}
+		public static Element<string> IsBlank(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Deve ficar em branco", Tests.IsBlank); return e;
+		}
+		public static Element<string> IsNotBlank(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return e;
+		}
+		public static Element<string> HasLength(this Element<string> e, int length, string msg = null) {
+			e.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.IsLength, length); return e;
+		}
+		public static Element<string> HasMinLength(this Element<string> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.IsMinLength, length); return e;
+		}
+		public static Element<string> HasMaxLength(this Element<string> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.IsMaxLength, length); return e;
+		}
+		public static Element<string> IsMatch(this Element<string> e, string pattern, string msg = null) {
+			e.Check(msg ?? "Não é um valor aceito", Tests.IsMatch, pattern); return e;
+		}
+		public static Element<string> IsEmail(this Element<string> e, string msg = null) {
+			e.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return e;
+		}
+		public static Element<string> IsDigitsOnly(this Element<string> e, string msg = null) {
+			e.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return e;
+		}
+		public static Element<T> IsDefinedInEnum<T>(this Element<T> e, string msg = null)
+		where T : IComparable, IFormattable, IConvertible {
+			if (!typeof(T).IsEnum) e.Check(false);
+			else e.Check(msg?? "Valor não-reconhecido", x => Enum.IsDefined(typeof(T), x));
+			return e;
+		}
+	}
+
+
+
+	public static class Ext_Element_Numeric {
+		public static Ps AsString<T>(this Element<T> p) => p.To(o => o.ToString());
+		public static Element<byte> AsByte(this Ps p) => _to(p, o => byte.Parse(o));
+		public static Element<short> AsShort(this Ps p) => _to(p, o => short.Parse(o));
+		public static Element<ushort> AsUshort(this Ps p) => _to(p, o => ushort.Parse(o));
+		public static Element<int> AsInt(this Ps p) => _to(p, o => int.Parse(o));
+		public static Element<uint> AsUint(this Ps p) => _to(p, o => uint.Parse(o));
+		public static Element<long> AsLong(this Ps p) => _to(p, o => long.Parse(o));
+		public static Element<ulong> AsUlong(this Ps p) => _to(p, o => ulong.Parse(o));
+		public static Element<float> AsFloat(this Ps p) => _to(p, o => float.Parse(o));
+		public static Element<decimal> AsDecimal(this Ps p) => _to(p, o => decimal.Parse(o));
+		public static Element<double> AsDouble(this Ps p) => _to(p, o => double.Parse(o));
+		public static Element<DateTime> AsDateTime(this Ps p, string format) => p.To(_parseDT, format);
+		public static Element<DateTime> AsDate(this Ps p) => p.To(o => o.ToDate(), "Não é uma data válida");
+		public static Element<DateTime?> AsNullableDate(this Ps p) => p.To(o => o.ToNullableDate(), "Não é uma data válida");
+
+		static Element<T> _to<T>(Ps p, Func<string, T> converter) => p.To(converter, _msgN<T>());
+		static string _msgN<N>() => $"Não é um número válido do tipo '{typeof(N).Name}'";
+		static DateTime _parseDT(string v, string f) => DateTime.ParseExact(v, f, CultureInfo.CurrentCulture);
+	}
+
+
+
+
+
+
+	public static class Ext_Element {
+		public static Element<T> GetCurrentValue<T>(this Element<T> p, out T variable) { variable = p.Value; return p; }
+	}
+
+
+
+
+
+
+	public static class Ext_Element_String {
+		public static Ps Trim(this Ps p, char c = (char)0) { p.Value = c == 0 ? p.Value.Trim() : p.Value.Trim(c); return p; }
+		public static Ps ToLower(this Ps p) { p.Value = p.Value?.ToLower(); return p; }
+		public static Ps ToUpper(this Ps p) { p.Value = p.Value?.ToUpper(); return p; }
+		public static Ps RemoveDiacritics(this Ps p) { p.Value = p.Value?.RemoveDiacritics(); return p; }
+		public static Ps ToASCII(this Ps p) { p.Value = p.Value?.ToASCII(); return p; }
+		public static Ps Crop(this Ps p, int startIndex, int length) { p.Value = p.Value?.Crop(startIndex, length); return p; }
+		public static Ps Replace(this Ps p, string oldStr, string newStr) { p.Value = p.Value?.Replace(oldStr, newStr); return p; }
+		public static Ps Replace(this Ps p, char oldChar, char newChar) { p.Value = p.Value?.Replace(oldChar, newChar); return p; }
+		public static Ps Replace(this Ps p, params ValueTuple<char, char>[] pairs) { p.Value = p.Value.Replace(pairs); return p; }
+		public static Ps RemoveChars(this Ps p, string chars) { p.Value = p.Value.RemoveChars(chars); return p; }
+		public static Ps RemoveChars(this Ps p, IEnumerable<char> chars) { p.Value = p.Value.RemoveChars(chars); return p; }
+		public static Ps RemoveChars(this Ps p, params char[] chars) { p.Value = p.Value.RemoveChars(chars); return p; }
+	}
+
+
+
+
+
+
+	public static class Ext_String {
+		public static bool IsIn(this string str, params string[] options) {
+			return options.Contains(str);
+		}
+
+		public static string RemoveChars(this string str, string chars) {
+			return Regex.Replace(str, $"[{Regex.Escape(chars)}]", "");
+		}
+
+		public static string RemoveChars(this string str, IEnumerable<char> chars) {
+			return RemoveChars(str, string.Join(string.Empty, chars));
+		}
+
+		public static string RemoveChars(this string str, params char[] chars) {
+			return RemoveChars(str, string.Join(string.Empty, chars));
+		}
+
+		public static string Crop(this string str, int startIndex, int length) {
+			return startIndex + length > str.Length - 1 ? str.Substring(startIndex) : str.Substring(startIndex, length);
+		}
+
+		public static string Replace(this string str, params ValueTuple<char, char>[] pairs) {
+			var array = str.ToCharArray();
+			for (int i = 0; i < array.Length; i++) {
+				var pair = findPair(array[i]);
+				if (pair != null) array[i] = pair.Value.Item2;
+			}
+			(char, char)? findPair(char key) {
+				for (int j = 0; j < pairs.Length; j++) if (pairs[j].Item1 == key) return pairs[j];
+				return null;
+			}
+			return array.ToString();
+		}
+
+		public static string RemoveDiacritics(this string text) {
+			var normalizedString = text.Normalize(NormalizationForm.FormD);
+			var sb = new StringBuilder(normalizedString.Length);
+			for (int i = 0; i < normalizedString.Length; i++) {
+				char c = normalizedString[i];
+				var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+				if (unicodeCategory != UnicodeCategory.NonSpacingMark) sb.Append(c);
+			}
+			return sb.ToString().Normalize(NormalizationForm.FormC);
+		}
+
+		public static string ToASCII(this string text, string replaceInvalidWith = "~") {
+			return Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]", replaceInvalidWith);
+		}
+
+		public static string RemoveNonASCII(this string text) {
+			return Regex.Replace(RemoveDiacritics(text), @"[^\u0000-\u007F]+", string.Empty);
+		}
+
+		public static bool IsEmpty(this string str) { return string.IsNullOrEmpty(str); }
+		public static bool IsBlank(this string str) { return string.IsNullOrWhiteSpace(str); }
+
+		public static DateTime? ToNullableDate(this string str) { try { return str.ToDate(); } catch { return null; } }
+		public static DateTime ToDate(this string str) {
+			int start =-1, len = 0;
+			int p1 = 0, p2 = 0, p3 = 0;
+			char sep = '\0';
+			for (int i=0;i<str.Length+1;i++){
+				char c = i == str.Length ? '\0' : str[i];
+				if (start == -1) {
+					if (!char.IsDigit(c)) throw new ArgumentException();
+					start = i; len++;
+				}
+				else if (char.IsDigit(c)) {
+					if (len == 4) throw new ArgumentException();
+					len++;
+				}
+				else {
+					if (sep == '\0') sep = c;
+					else if (c != sep && p3 != 0) throw new ArgumentException();
+					int px = int.Parse(str.Substring(start,len));
+					if (p1 == 0) p1 = px;
+					else if( p2 == 0) p2 = px;
+					else if (p3 == 0) {
+						if (c == sep) throw new ArgumentException();
+						p3 = px;
+						break;
+					}
+					start = -1; len = 0;
+				}
+			}
+			int year, month, day, m1, m2;
+			if (p1 > 31) { year = p1; month = p2; day = p3; }
+			else {
+				year = p3;
+				if( p2 < 13) { month = p2; day=p1; }
+				else { month = p1; day = p2; }
+			}
+			if (month > 12 || day > 31) throw new ArgumentException();
+			return new DateTime(year, month, day);
+		}
+
+		//public static IEnumerable<string> Trim(this IEnumerable<string> texts) => texts.Select(u => u.Trim());
+		//public static IEnumerable<string> ToLower(this IEnumerable<string> texts) => texts.Select(u => u.ToLower());
+		//public static IEnumerable<string> ToUpper(this IEnumerable<string> texts) => texts.Select(u => u.ToUpper());
+		//public static IEnumerable<string> ToASCII(this IEnumerable<string> texts, string replaceInvalidWith = "~") => texts.Select(u => u.ToASCII(replaceInvalidWith));
+		//public static IEnumerable<string> RemoveDiacritics(this IEnumerable<string> message) => message.Select(t => t.RemoveDiacritics());
+	}
+
+
+
+
+
+
+	public delegate T ValueAdjuster<T>(T value);
+
+	public static class Ext_ValueAdjuster {
+		internal static IEnumerable<V> Apply<V>(this ValueAdjuster<V> f, IEnumerable<V> collection) {
+			return collection.Select(y => f(y));
+		}
+	}
+
+
+
+
+
+
+	public static class Ext_FieldInfo {
+		public static bool IsConst(this FieldInfo fi) => fi.IsLiteral && !fi.IsInitOnly;
+		public static bool IsReadOnly(this FieldInfo fi) => fi.IsLiteral && fi.IsInitOnly;
+	}
+
+
+
+
+
+
+	public static class Ext_Type {
+		public static T[] GetConstants<T>(this Type type) {
+			var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);
+			return fields.Where(fi => fi.IsConst() && fi.FieldType == typeof(T))
+			.Select(fi => (T)fi.GetValue(null)).ToArray();
+		}
+	}
 }

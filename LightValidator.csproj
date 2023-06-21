@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
@@ -21,10 +21,14 @@
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>symbols.nupkg</SymbolPackageFormat>
 		<Title>Limcap's Light Validator</Title>
-		<Version>0.2.0.3</Version>
+		<Version>0.5.1.0</Version>
 		<AssemblyName>$(Company).$(MSBuildProjectName)</AssemblyName>
 		<NeutralLanguage>en</NeutralLanguage>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="StrOp.cs" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CSharp" Version="4.3.0" />
