@@ -297,96 +297,99 @@ namespace Limcap.LightValidator {
 
 	public static class Ext_Element_Checks {
 		// generic
-		public static Element<V> IsNull<V>(this Element<V> p, string msg = null) {
-			p.Check(msg ?? $"Deve ser nulo", Tests.IsNull); return p;
+		public static Element<V> IsNull<V>(this Element<V> e, string msg = null) {
+			e.Check(msg ?? $"Deve ser nulo", Tests.IsNull); return e;
 		}
-		public static Element<V> IsNotNull<V>(this Element<V> p, string msg = null) {
-			p.Check(msg ?? $"Não pode ser nulo", Tests.IsNotNull); return p;
+		public static Element<V> IsNotNull<V>(this Element<V> e, string msg = null) {
+			e.Check(msg ?? $"Não pode ser nulo", Tests.IsNotNull); return e;
 		}
-		public static Element<V> IsIn<V>(this Element<V> p, IEnumerable<V> options, string msg = null) {
-			p.Check(msg ?? $"Não é um valor válido", Tests.IsIn, options); return p;
+		public static Element<V> IsIn<V>(this Element<V> e, IEnumerable<V> options, string msg = null) {
+			e.Check(msg ?? $"Não é um valor válido", Tests.IsIn, options); return e;
 		}
-		public static Element<V> IsIn<V>(this Element<V> p, params V[] options) {
-			p.Check($"Não é um opção válida", Tests.IsIn, options); return p;
+		public static Element<V> IsIn<V>(this Element<V> e, params V[] options) {
+			e.Check($"Não é um opção válida", Tests.IsIn, options); return e;
 		}
 
 		// IEquatable
-		public static Element<V> IsEquals<V>(this Element<V> p, V value, string msg = null) where V : IEquatable<V> {
-			p.Check(msg ?? $"Deve ser {value}", Tests.IsEqual, value); return p;
+		public static Element<V> IsEquals<V>(this Element<V> e, V value, string msg = null) where V : IEquatable<V> {
+			e.Check(msg ?? $"Deve ser {value}", Tests.IsEqual, value); return e;
 		}
 
 		// IComparable
-		public static Element<V> IsAtLeast<V>(this Element<V> p, V minValue, string msg = null) where V : IComparable<V> {
-			p.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.IsAtLeast, minValue); return p;
+		public static Element<V> IsAtLeast<V>(this Element<V> e, V minValue, string msg = null) where V : IComparable<V> {
+			e.Check(msg ?? $"Não pode ser menor que {minValue}", Tests.IsAtLeast, minValue); return e;
 		}
-		public static Element<V> IsAtMost<V>(this Element<V> p, V maxValue, string msg = null) where V : IComparable<V> {
-			p.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.IsAtMost, maxValue); return p;
+		public static Element<V> IsAtMost<V>(this Element<V> e, V maxValue, string msg = null) where V : IComparable<V> {
+			e.Check(msg ?? $"Não pode ser maior que {maxValue}", Tests.IsAtMost, maxValue); return e;
 		}
-		public static Element<V> Is<V>(this Element<V> p, V value, string msg = null) where V : IComparable<V> {
-			p.Check(msg ?? $"Deve ser exatamente {value}", Tests.IsExactly, value); return p;
+		public static Element<V> Is<V>(this Element<V> e, V value, string msg = null) where V : IComparable<V> {
+			e.Check(msg ?? $"Deve ser exatamente {value}", Tests.IsExactly, value); return e;
 		}
 
 		// IEnumerable
-		public static Element<IEnumerable<V>> IsEmpty<V>(this Element<IEnumerable<V>> p, string msg = null) {
-			p.Check(msg ?? $"Deve ficar vazio", Tests.IsEmpty); return p;
+		public static Element<IEnumerable<V>> IsEmpty<V>(this Element<IEnumerable<V>> e, string msg = null) {
+			e.Check(msg ?? $"Deve ficar vazio", Tests.IsEmpty); return e;
 		}
-		public static Element<IEnumerable<V>> IsNotEmpty<V>(this Element<IEnumerable<V>> p, string msg = null) {
-			p.Check(msg ?? $"Não pode ficar vazio", Tests.IsNotEmpty); return p;
+		public static Element<IEnumerable<V>> IsNotEmpty<V>(this Element<IEnumerable<V>> e, string msg = null) {
+			e.Check(msg ?? $"Não pode ficar vazio", Tests.IsNotEmpty); return e;
 		}
-		public static Element<IEnumerable<V>> HasLength<V>(this Element<IEnumerable<V>> p, int length, string msg = null) {
-			p.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.IsLength, length); return p;
+		public static Element<IEnumerable<V>> HasLength<V>(this Element<IEnumerable<V>> e, int length, string msg = null) {
+			e.Check(msg ?? $"Deve ter exatamente {length} itens", Tests.IsLength, length); return e;
 		}
-		public static Element<IEnumerable<V>> HasMinLength<V>(this Element<IEnumerable<V>> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.IsMinLength, length); return p;
+		public static Element<IEnumerable<V>> HasMinLength<V>(this Element<IEnumerable<V>> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser menor que {length} itens", Tests.IsMinLength, length); return e;
 		}
-		public static Element<IEnumerable<V>> HasMaxLength<V>(this Element<IEnumerable<V>> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.IsMaxLength, length); return p;
+		public static Element<IEnumerable<V>> HasMaxLength<V>(this Element<IEnumerable<V>> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser maior que {length} itens", Tests.IsMaxLength, length); return e;
 		}
 
 		// int
-		public static Element<int> IsAtLeast(this Element<int> p, int number, string msg = null) {
-			p.Check(msg ?? $"Não pode ser menor que {number}", Tests.IsAtLeast, number); return p;
+		public static Element<int> IsAtLeast(this Element<int> e, int number, string msg = null) {
+			e.Check(msg ?? $"Não pode ser menor que {number}", Tests.IsAtLeast, number); return e;
 		}
-		public static Element<int> IsAtMost(this Element<int> p, int number, string msg = null) {
-			p.Check(msg ?? $"Não pode ser maior que {number}", Tests.IsAtMost, number); return p;
+		public static Element<int> IsAtMost(this Element<int> e, int number, string msg = null) {
+			e.Check(msg ?? $"Não pode ser maior que {number}", Tests.IsAtMost, number); return e;
 		}
-		public static Element<int> Is(this Element<int> p, int number, string msg = null) {
-			p.Check(msg ?? $"Deve ser exatamente {number}", Tests.IsExactly, number); return p;
+		public static Element<int> Is(this Element<int> e, int number, string msg = null) {
+			e.Check(msg ?? $"Deve ser exatamente {number}", Tests.IsExactly, number); return e;
 		}
 
 		// string
-		public static Element<string> IsEmpty(this Element<string> p, string msg = null) {
-			p.Check(msg ?? $"Não deve ser preenchido", Tests.IsEmpty); return p;
+		public static Element<string> IsEmpty(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Não deve ser preenchido", Tests.IsEmpty); return e;
 		}
-		public static Element<string> IsNotEmpty(this Element<string> p, string msg = null) {
-			p.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return p;
+		public static Element<string> IsNotEmpty(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return e;
 		}
-		public static Element<string> IsBlank(this Element<string> p, string msg = null) {
-			p.Check(msg ?? $"Deve ficar em branco", Tests.IsBlank); return p;
+		public static Element<string> IsBlank(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Deve ficar em branco", Tests.IsBlank); return e;
 		}
-		public static Element<string> IsNotBlank(this Element<string> p, string msg = null) {
-			p.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return p;
+		public static Element<string> IsNotBlank(this Element<string> e, string msg = null) {
+			e.Check(msg ?? $"Não está preenchido", Tests.IsNotEmpty); return e;
 		}
-		public static Element<string> HasLength(this Element<string> p, int length, string msg = null) {
-			p.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.IsLength, length); return p;
+		public static Element<string> HasLength(this Element<string> e, int length, string msg = null) {
+			e.Check(msg ?? $"Deve ter exatamente {length} caracteres", Tests.IsLength, length); return e;
 		}
-		public static Element<string> HasMinLength(this Element<string> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.IsMinLength, length); return p;
+		public static Element<string> HasMinLength(this Element<string> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser menor que {length} caracteres", Tests.IsMinLength, length); return e;
 		}
-		public static Element<string> HasMaxLength(this Element<string> p, int length, string msg = null) {
-			p.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.IsMaxLength, length); return p;
+		public static Element<string> HasMaxLength(this Element<string> e, int length, string msg = null) {
+			e.Check(msg ?? $"Não pode ser maior que {length} caracteres", Tests.IsMaxLength, length); return e;
 		}
-		public static Element<string> IsMatch(this Element<string> p, string pattern, string msg = null) {
-			p.Check(msg ?? "Não é um valor aceito", Tests.IsMatch, pattern); return p;
+		public static Element<string> IsMatch(this Element<string> e, string pattern, string msg = null) {
+			e.Check(msg ?? "Não é um valor aceito", Tests.IsMatch, pattern); return e;
 		}
-		public static Element<string> IsEmail(this Element<string> p, string msg = null) {
-			p.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return p;
+		public static Element<string> IsEmail(this Element<string> e, string msg = null) {
+			e.Check(msg ?? "Não é um e-mail válido", Tests.IsEmail); return e;
 		}
-		public static Element<T> IsDefinedInEnum<T>(this Element<T> p, string msg = null)
+		public static Element<string> IsDigitsOnly(this Element<string> e, string msg = null) {
+			e.Check(msg ?? "Deve conter somente digitos (0-9)", Tests.IsDigitsOnly); return e;
+		}
+		public static Element<T> IsDefinedInEnum<T>(this Element<T> e, string msg = null)
 		where T : IComparable, IFormattable, IConvertible {
-			if (!typeof(T).IsEnum) p.Check(false);
-			else p.Check(msg?? "Valor não-reconhecido", x => Enum.IsDefined(typeof(T), x));
-			return p;
+			if (!typeof(T).IsEnum) e.Check(false);
+			else e.Check(msg?? "Valor não-reconhecido", x => Enum.IsDefined(typeof(T), x));
+			return e;
 		}
 	}
 
