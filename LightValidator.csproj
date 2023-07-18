@@ -21,7 +21,7 @@
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>symbols.nupkg</SymbolPackageFormat>
 		<Title>Limcap's Light Validator</Title>
-		<Version>0.5.1.0</Version>
+		<Version>0.5.2.0</Version>
 		<AssemblyName>$(Company).$(MSBuildProjectName)</AssemblyName>
 		<NeutralLanguage>en</NeutralLanguage>
 	</PropertyGroup>
