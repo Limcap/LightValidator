@@ -1,4 +1,8 @@
-﻿### Ver 0.5.1
+﻿### Ver 0.5.2
+- Added Element extensions: IsValidOption
+- Added Element extensions: IsAllowed
+
+### Ver 0.5.1
 - Added feature to convert Report and Logs to Json: (Report.ToJson(), Log.ToJson(),
   Log.SetJsonPropertyNames())
 - Rename Element.SetValue to Element.NewValue and add overloads

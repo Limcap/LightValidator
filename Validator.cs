@@ -309,6 +309,18 @@ namespace Limcap.LightValidator {
 		public static Element<V> IsIn<V>(this Element<V> e, params V[] options) {
 			e.Check($"Não é um opção válida", Tests.IsIn, options); return e;
 		}
+		public static Element<T> IsValidOption<T>(this Element<T> e, bool result) {
+			e.Check("Não é uma opção válida", result); return e;
+		}
+		public static Element<T> IsValidOption<T>(this Element<T> e, ValidationTest<T> test) {
+			e.Check("Não é uma opção válida", test); return e;
+		}
+		public static Element<T> IsAllowed<T>(this Element<T> e, bool result) {
+			e.Check("Não é uma opção válida", result); return e;
+		}
+		public static Element<T> IsAllowed<T>(this Element<T> e, ValidationTest<T> test) {
+			e.Check("Não é uma opção válida", test); return e;
+		}
 
 		// IEquatable
 		public static Element<V> IsEquals<V>(this Element<V> e, V value, string msg = null) where V : IEquatable<V> {
